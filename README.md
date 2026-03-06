@@ -65,10 +65,11 @@ npm start
 
 ## 示例文件
 
-目录里放了三个示例：
+目录里放了四个示例：
 - `examples/sample.har`
 - `examples/sample.postman_collection.json`
 - `examples/sample-curl.txt`
+- `examples/sample-siwe.har`
 
 你可以先用它们测试导入模式，再换成自己的抓包文件。
 
@@ -92,6 +93,7 @@ npm start
 - 把请求里的 token 替换成 `{{state.token}}`
 - 把登录体里的 email/password 替换成 `{{account.xxx}}`
 - 自动把 Postman 变量 `{{xxx}}` 映射到 `{{state.xxx}} / {{account.xxx}} / {{env.xxx}}`
+- EVM 签名登录会识别 `nonce/challenge` 请求，并优先识别 SIWE 风格消息
 - 路径表达式支持数组下标（如 `data.items[0].id`）
 - 默认请求重试策略（网络抖动、429、5xx）
 
@@ -118,6 +120,14 @@ npm start
 
 你可以全局改，也可以在单个 `request/claimList` 任务里单独覆盖 `requestPolicy`。
 另外，配置里出现的 `{{env.XYZ}}` 变量会自动写入 `.env.example`，减少手工遗漏。
+
+## EVM 签名登录（v7增强）
+
+- 导入器会把 `challenge/message-to-sign/siwe` 一类请求识别为 `auth_nonce`
+- 对 SIWE 文本会自动生成 `auth.messageTemplate`
+- 支持 `auth.noncePath`，签名前先取 nonce，再渲染模板
+- 模板可用 `{{now.iso}}` / `{{now.unix}}` / `{{now.isoPlus10m}}`
+- 导入产物 `import.report.json` 会给出登录链路预警（例如缺少 `noncePath`）
 
 ## 动态字段自动绑定
 

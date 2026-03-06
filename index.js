@@ -92,6 +92,7 @@ function buildImportReport({
   inferredAuthMode,
   accountSource,
   authMode,
+  authConfig,
   selectedTaskGroups,
   allCandidates,
 }) {
@@ -99,6 +100,23 @@ function buildImportReport({
   const selectedCandidateIds = new Set(
     selectedTaskGroups.flatMap((group) => group.sourceCandidateIds || [])
   );
+  const warnings = [];
+
+  if (authMode === "evm_sign") {
+    if (!authConfig || authConfig.type !== "evm_sign") {
+      warnings.push("签名登录模式已启用，但未生成 evm_sign 配置。");
+    } else {
+      if (!authConfig.noncePath) {
+        warnings.push("未识别到 noncePath，建议手动检查 nonce/challenge 响应字段。");
+      }
+      if (!authConfig.messageTemplate && !authConfig.messagePath) {
+        warnings.push("未识别到 messageTemplate/messagePath，签名消息可能无法自动构造。");
+      }
+      if (authConfig.messagePath === "data.message" && !authConfig.messageTemplate) {
+        warnings.push("messagePath 仍是默认值 data.message，建议手动确认。");
+      }
+    }
+  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -123,6 +141,7 @@ function buildImportReport({
         taskName: group.task.name,
       })),
     },
+    warnings,
     candidates: [...selectedCandidateIds].map((candidateId) => {
       const candidate = candidateMap.get(candidateId);
       if (!candidate) {
@@ -370,44 +389,58 @@ async function runImportWizard(rl) {
   let loginCandidate = null;
 
   if (authMode.id === "request") {
+    const loginOptions = authCandidates
+      .filter((candidate) => candidate.kind === "auth_login")
+      .map((candidate) => ({
+        candidate,
+        label: candidate.name,
+        description: summarizeImportedCandidate(candidate),
+      }));
+    if (loginOptions.length === 0) {
+      throw new Error("未找到可用的登录请求，请改用“不导入登录”或检查抓包内容。");
+    }
+
     const selected = await chooseOne(
       rl,
       "选择登录请求",
-      authCandidates
-        .filter((candidate) => candidate.kind === "auth_login")
-        .map((candidate) => ({
-          candidate,
-          label: candidate.name,
-          description: summarizeImportedCandidate(candidate),
-        })),
+      loginOptions,
       0
     );
     loginCandidate = selected.candidate;
   }
 
   if (authMode.id === "evm_sign") {
+    const nonceOptions = authCandidates
+      .filter((candidate) => candidate.kind === "auth_nonce")
+      .map((candidate) => ({
+        candidate,
+        label: candidate.name,
+        description: summarizeImportedCandidate(candidate),
+      }));
+    const loginOptions = authCandidates
+      .filter((candidate) => candidate.kind === "auth_login")
+      .map((candidate) => ({
+        candidate,
+        label: candidate.name,
+        description: summarizeImportedCandidate(candidate),
+      }));
+    if (nonceOptions.length === 0) {
+      throw new Error("未找到 nonce/challenge 请求，无法自动生成签名登录链路。");
+    }
+    if (loginOptions.length === 0) {
+      throw new Error("未找到签名登录请求，无法自动生成签名登录链路。");
+    }
+
     const nonceSelected = await chooseOne(
       rl,
       "选择 nonce 请求",
-      authCandidates
-        .filter((candidate) => candidate.kind === "auth_nonce")
-        .map((candidate) => ({
-          candidate,
-          label: candidate.name,
-          description: summarizeImportedCandidate(candidate),
-        })),
+      nonceOptions,
       0
     );
     const loginSelected = await chooseOne(
       rl,
       "选择登录请求",
-      authCandidates
-        .filter((candidate) => candidate.kind === "auth_login")
-        .map((candidate) => ({
-          candidate,
-          label: candidate.name,
-          description: summarizeImportedCandidate(candidate),
-        })),
+      loginOptions,
       0
     );
     nonceCandidate = nonceSelected.candidate;
@@ -489,6 +522,7 @@ async function runImportWizard(rl) {
     inferredAuthMode,
     accountSource: accountSource.id,
     authMode: authMode.id,
+    authConfig: finalizedPlan.auth,
     selectedTaskGroups: finalizedPlan.taskGroups,
     allCandidates: candidates,
   });
