@@ -17,6 +17,12 @@ cd E:\文档\web3脚本参考\script-generator
 npm install
 ```
 
+4. 先跑一次健康检查（建议）：
+
+```bash
+npm run check
+```
+
 ## 2. 启动脚本生成器
 
 ```bash
@@ -155,4 +161,3 @@ npm start
 - 私钥、token、账号文件不要上传公开仓库
 - 用小号测试，不要用主钱包
 - 先小并发验证，再放大
-

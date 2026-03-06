@@ -26,6 +26,11 @@
 npm start
 ```
 
+## 健康检查
+```bash
+npm run check
+```
+
 ## 两种模式
 
 ### 1. 手动拼接模式
