@@ -1,0 +1,5 @@
+curl 'https://example.com/api/checkin' \
+  -X POST \
+  -H 'Authorization: Bearer demo_token_value_1234567890' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{}'
