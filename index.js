@@ -115,6 +115,11 @@ function buildImportReport({
       if (authConfig.messagePath === "data.message" && !authConfig.messageTemplate) {
         warnings.push("messagePath 仍是默认值 data.message，建议手动确认。");
       }
+      if (authConfig.siwe) {
+        if (!authConfig.siwe.domain || !authConfig.siwe.uri || !authConfig.siwe.chainId) {
+          warnings.push("SIWE 上下文字段不完整（domain/uri/chainId），建议手动补齐。");
+        }
+      }
     }
   }
 
@@ -141,6 +146,15 @@ function buildImportReport({
         taskName: group.task.name,
       })),
     },
+    authSummary: authConfig
+      ? {
+          type: authConfig.type || authMode,
+          hasNoncePath: Boolean(authConfig.noncePath),
+          hasMessagePath: Boolean(authConfig.messagePath),
+          hasMessageTemplate: Boolean(authConfig.messageTemplate),
+          siwe: authConfig.siwe || null,
+        }
+      : null,
     warnings,
     candidates: [...selectedCandidateIds].map((candidateId) => {
       const candidate = candidateMap.get(candidateId);

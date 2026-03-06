@@ -125,8 +125,9 @@ npm start
 
 - 导入器会把 `challenge/message-to-sign/siwe` 一类请求识别为 `auth_nonce`
 - 对 SIWE 文本会自动生成 `auth.messageTemplate`
+- 自动抽取 `auth.siwe.domain / uri / version / chainId`
 - 支持 `auth.noncePath`，签名前先取 nonce，再渲染模板
-- 模板可用 `{{now.iso}}` / `{{now.unix}}` / `{{now.isoPlus10m}}`
+- 模板可用 `{{auth.siwe.*}}` 和 `{{now.iso}}` / `{{now.unix}}` / `{{now.isoPlus10m}}`
 - 导入产物 `import.report.json` 会给出登录链路预警（例如缺少 `noncePath`）
 
 ## 动态字段自动绑定
@@ -163,3 +164,4 @@ npm start
 - Postman Collection v2.1 结构：https://schema.postman.com/json/collection/v2.1.0/docs/index.html
 - HTTP `429 Too Many Requests` 与 `Retry-After`：https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/429
 - SIWE（EIP-4361）签名登录格式：https://eips.ethereum.org/EIPS/eip-4361
+- SIWE 官方站点（实现与流程参考）：https://docs.login.xyz/
