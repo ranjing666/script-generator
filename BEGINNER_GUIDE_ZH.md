@@ -2,6 +2,9 @@
 
 这份教程面向没有脚本经验的新手，只做一件事：让你独立跑通一个项目方测试网任务脚本。
 
+如果你更喜欢“对着界面一步一步点”的版本，直接看：
+- [BEGINNER_SCREENSHOT_GUIDE_ZH.md](./BEGINNER_SCREENSHOT_GUIDE_ZH.md)
+
 ## 1. 先准备环境（只做一次）
 
 1. 安装 Node.js（建议 `18` 或 `20`）

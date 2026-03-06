@@ -4,6 +4,7 @@
 
 零基础先看：
 - [BEGINNER_GUIDE_ZH.md](./BEGINNER_GUIDE_ZH.md)
+- [BEGINNER_SCREENSHOT_GUIDE_ZH.md](./BEGINNER_SCREENSHOT_GUIDE_ZH.md)
 
 ## 目标
 - 把常见测试网任务拆成可拼接的积木
