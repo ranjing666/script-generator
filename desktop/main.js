@@ -21,13 +21,13 @@ function createWindow() {
 }
 
 function getDefaultOutputRoot() {
-  return path.join(app.getPath("documents"), "ScriptGeneratorProjects");
+  return path.join(app.getPath("documents"), "FengToolboxProjects");
 }
 
 function registerIpcHandlers() {
   ipcMain.handle("system:get-meta", async () => {
     return {
-      appName: "Script Generator",
+      appName: "风的工具箱v1.1.0",
       appVersion: app.getVersion(),
       platform: process.platform,
       defaultOutputRoot: getDefaultOutputRoot(),

@@ -6,13 +6,13 @@
 
 1. 打开：`https://github.com/ranjing666/script-generator/releases`
 2. 进入最新版本
-3. 在 `Assets` 点击 `ScriptGenerator-<version>-Setup-x64.exe`
+3. 在 `Assets` 点击 `风的工具箱v<version>-Setup-x64.exe`
 
-截图位 A：能看到 `ScriptGenerator-...-Setup-x64.exe` 文件名。
+截图位 A：能看到 `风的工具箱v...-Setup-x64.exe` 文件名。
 
 ## 2. 安装软件
 
-1. 双击 `ScriptGenerator-...-Setup-x64.exe`
+1. 双击 `风的工具箱v...-Setup-x64.exe`
 2. 连续点击“下一步”
 3. 点击“安装”
 4. 点击“完成”
@@ -21,12 +21,12 @@
 
 ## 3. 打开软件
 
-1. 双击桌面图标 `Script Generator`
+1. 双击桌面图标 `风的工具箱v1.1.0`
 2. 进入主界面，顶部可看到两个页签：
 - `手动拼接`
 - `抓包导入`
 
-截图位 C：看到软件标题 `Script Generator Desktop`。
+截图位 C：看到软件标题 `风的工具箱v1.1.0`。
 
 ## 4. 用导入模式快速生成
 

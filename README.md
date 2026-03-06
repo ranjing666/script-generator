@@ -12,9 +12,9 @@
 
 不想配 Node.js，直接下载 Windows 安装包：
 - Releases: `https://github.com/ranjing666/script-generator/releases`
-- 资产文件：`ScriptGenerator-<version>-Setup-x64.exe`
+- 资产文件：`风的工具箱v<version>-Setup-x64.exe`
 
-下载安装后，直接打开 `Script Generator` 图形界面使用。
+下载安装后，直接打开 `风的工具箱v1.1.0` 图形界面使用。
 
 ## 目标
 - 把常见测试网任务拆成可拼接的积木

@@ -9,10 +9,10 @@
 1. 打开 Releases 页面：  
    `https://github.com/ranjing666/script-generator/releases`
 2. 点开最新版本（例如 `v1.1.0`）
-3. 在 `Assets` 下载：`ScriptGenerator-<version>-Setup-x64.exe`
+3. 在 `Assets` 下载：`风的工具箱v<version>-Setup-x64.exe`
 4. 双击安装包
 5. 安装向导里一直点“下一步”
-6. 安装完成后，桌面或开始菜单打开 `Script Generator`
+6. 安装完成后，桌面或开始菜单打开 `风的工具箱v1.1.0`
 
 首次使用建议先用示例文件测试一次，再填真实私钥/token/账号。
 
