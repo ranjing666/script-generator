@@ -1,13 +1,56 @@
 {
   "name": "testnet-script-generator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Interactive generator for modular testnet automation scripts",
-  "main": "index.js",
+  "author": "ranjing666",
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node index.js",
     "create": "node index.js",
+    "desktop": "electron .",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
     "check": "node scripts/health-check.js"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.9",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.ranjing.scriptgenerator",
+    "productName": "Script Generator",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "lib/**/*",
+      "examples/**/*",
+      "scripts/health-check.js",
+      "index.js",
+      "README.md",
+      "BEGINNER_GUIDE_ZH.md",
+      "BEGINNER_SCREENSHOT_GUIDE_ZH.md",
+      "DESKTOP_INSTALL_GUIDE_ZH.md",
+      "DESKTOP_SCREENSHOT_GUIDE_ZH.md",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ScriptGenerator-${version}-Setup-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
 }

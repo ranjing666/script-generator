@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Script Generator Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Script Generator Desktop</h1>
+        <p id="metaText">加载中...</p>
+      </div>
+      <div class="tabs">
+        <button id="tabManual" class="tab-btn active">手动拼接</button>
+        <button id="tabImport" class="tab-btn">抓包导入</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="panelManual" class="panel">
+        <h2>手动拼接模式</h2>
+        <div class="grid">
+          <label>
+            项目名
+            <input id="manualProjectName" type="text" value="desktop-manual-bot" />
+          </label>
+          <label>
+            输出目录
+            <div class="inline">
+              <input id="manualOutputDir" type="text" />
+              <button id="manualPickOutput" type="button">选择</button>
+            </div>
+          </label>
+          <label>
+            账号来源
+            <select id="manualAccountSource">
+              <option value="privateKeys">privateKeys</option>
+              <option value="tokens">tokens</option>
+              <option value="accounts">accounts</option>
+            </select>
+          </label>
+          <label>
+            账号字段（accounts 模式）
+            <input id="manualAccountFields" type="text" placeholder="email,password" />
+          </label>
+          <label>
+            登录模式
+            <select id="manualAuthMode"></select>
+          </label>
+          <label>
+            并发账号数
+            <input id="manualConcurrency" type="number" min="1" value="3" />
+          </label>
+          <label class="checkbox-line">
+            <input id="manualUseProxy" type="checkbox" />
+            使用代理文件 data/proxies.txt
+          </label>
+          <label class="checkbox-line">
+            <input id="manualRepeat" type="checkbox" />
+            循环执行
+          </label>
+          <label>
+            循环间隔（分钟）
+            <input id="manualInterval" type="number" min="1" value="60" />
+          </label>
+        </div>
+
+        <h3>任务积木</h3>
+        <div id="manualPresetList" class="checklist"></div>
+
+        <div class="actions">
+          <button id="manualGenerate" class="primary">生成项目</button>
+          <button id="manualOpenDir" disabled>打开输出目录</button>
+        </div>
+        <pre id="manualStatus" class="status"></pre>
+      </section>
+
+      <section id="panelImport" class="panel hidden">
+        <h2>抓包导入模式</h2>
+        <div class="grid">
+          <label>
+            项目名
+            <input id="importProjectName" type="text" value="desktop-import-bot" />
+          </label>
+          <label>
+            抓包类型
+            <select id="importSourceType">
+              <option value="har">har</option>
+              <option value="postman">postman</option>
+              <option value="curl">curl</option>
+            </select>
+          </label>
+          <label>
+            导入文件路径
+            <div class="inline">
+              <input id="importInputPath" type="text" />
+              <button id="importPickFile" type="button">选择</button>
+            </div>
+          </label>
+          <label>
+            输出目录
+            <div class="inline">
+              <input id="importOutputDir" type="text" />
+              <button id="importPickOutput" type="button">选择</button>
+            </div>
+          </label>
+          <label>
+            账号来源
+            <select id="importAccountSource">
+              <option value="privateKeys">privateKeys</option>
+              <option value="tokens">tokens</option>
+              <option value="accounts">accounts</option>
+            </select>
+          </label>
+          <label>
+            账号字段（accounts 模式）
+            <input id="importAccountFields" type="text" placeholder="email,password" />
+          </label>
+          <label>
+            登录模式
+            <select id="importAuthMode"></select>
+          </label>
+          <label>
+            登录请求（auth_login）
+            <select id="importLoginCandidate"></select>
+          </label>
+          <label>
+            nonce 请求（auth_nonce）
+            <select id="importNonceCandidate"></select>
+          </label>
+          <label>
+            并发账号数
+            <input id="importConcurrency" type="number" min="1" value="3" />
+          </label>
+          <label class="checkbox-line">
+            <input id="importUseProxy" type="checkbox" />
+            使用代理文件 data/proxies.txt
+          </label>
+          <label class="checkbox-line">
+            <input id="importRepeat" type="checkbox" />
+            循环执行
+          </label>
+          <label>
+            循环间隔（分钟）
+            <input id="importInterval" type="number" min="1" value="60" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="importAnalyze">分析抓包</button>
+          <button id="importGenerate" class="primary">生成项目</button>
+          <button id="importOpenDir" disabled>打开输出目录</button>
+        </div>
+
+        <h3>分析结果</h3>
+        <pre id="importSummary" class="status"></pre>
+
+        <h3>任务组（默认全选）</h3>
+        <div id="importGroupList" class="checklist"></div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

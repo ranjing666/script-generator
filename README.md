@@ -5,6 +5,16 @@
 零基础先看：
 - [BEGINNER_GUIDE_ZH.md](./BEGINNER_GUIDE_ZH.md)
 - [BEGINNER_SCREENSHOT_GUIDE_ZH.md](./BEGINNER_SCREENSHOT_GUIDE_ZH.md)
+- [DESKTOP_INSTALL_GUIDE_ZH.md](./DESKTOP_INSTALL_GUIDE_ZH.md)
+- [DESKTOP_SCREENSHOT_GUIDE_ZH.md](./DESKTOP_SCREENSHOT_GUIDE_ZH.md)
+
+## 小白直接安装（推荐）
+
+不想配 Node.js，直接下载 Windows 安装包：
+- Releases: `https://github.com/ranjing666/script-generator/releases`
+- 资产文件：`ScriptGenerator-<version>-Setup-x64.exe`
+
+下载安装后，直接打开 `Script Generator` 图形界面使用。
 
 ## 目标
 - 把常见测试网任务拆成可拼接的积木
@@ -25,6 +35,17 @@
 ## 启动
 ```bash
 npm start
+```
+
+## 桌面版
+```bash
+npm install
+npm run desktop
+```
+
+## 构建安装包（Windows）
+```bash
+npm run dist:win
 ```
 
 ## 健康检查

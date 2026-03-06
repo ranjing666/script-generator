@@ -11,6 +11,7 @@ const {
   finalizeImportedPlan,
 } = require("../lib/importer");
 const { createProject } = require("../lib/generator");
+const desktopService = require("../lib/desktop-service");
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -171,6 +172,10 @@ function main() {
   runNodeCheck(path.join(ROOT, "lib", "importer.js"));
   runNodeCheck(path.join(ROOT, "lib", "generator.js"));
   runNodeCheck(path.join(ROOT, "lib", "presets.js"));
+  runNodeCheck(path.join(ROOT, "lib", "desktop-service.js"));
+  runNodeCheck(path.join(ROOT, "desktop", "main.js"));
+  runNodeCheck(path.join(ROOT, "desktop", "preload.js"));
+  runNodeCheck(path.join(ROOT, "desktop", "renderer", "app.js"));
   console.log("[PASS] syntax-check");
 
   runImportSmokeCase({
@@ -220,6 +225,9 @@ function main() {
   });
 
   runPackageNameFallbackCheck();
+  const desktopPresets = desktopService.listPresets("privateKeys");
+  assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");
+  console.log("[PASS] desktop-service");
   console.log("health-check: all passed");
 }
 
