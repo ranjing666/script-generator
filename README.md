@@ -39,6 +39,7 @@ npm start
 
 当前支持：
 - `HAR` 文件
+- `Postman Collection v2.1` 文件
 - `cURL` 文本文件
 
 导入后生成器会尽量自动识别：
@@ -63,8 +64,9 @@ npm start
 
 ## 示例文件
 
-目录里放了两个示例：
+目录里放了三个示例：
 - `examples/sample.har`
+- `examples/sample.postman_collection.json`
 - `examples/sample-curl.txt`
 
 你可以先用它们测试导入模式，再换成自己的抓包文件。
@@ -73,7 +75,9 @@ npm start
 
 - 如果能导出 `HAR`，优先用 `HAR`
 - 因为 `HAR` 通常带响应体，更容易自动识别 `token` 路径
+- `HAR` 的 `response.content.encoding=base64` 现在也会自动解码再识别
 - `cURL` 更适合你只复制了一两个接口命令的情况
+- Postman Collection 适合你已经把接口整理成 folder/request 的情况
 
 ## 导入模式当前能自动处理什么
 
@@ -86,6 +90,8 @@ npm start
 - 自动把后续请求中的相同字面量替换成 `{{state.xxx}}`
 - 把请求里的 token 替换成 `{{state.token}}`
 - 把登录体里的 email/password 替换成 `{{account.xxx}}`
+- 路径表达式支持数组下标（如 `data.items[0].id`）
+- 默认请求重试策略（网络抖动、429、5xx）
 
 ## 推荐顺序规则
 
@@ -98,6 +104,17 @@ npm start
 
 生成后的顺序会写进：
 - `project.config.json -> meta.recommendedTaskOrder`
+
+## 请求重试策略
+
+生成出的 `project.config.json` 在 `project.requestPolicy` 下有默认策略：
+- `maxAttempts`: 最大尝试次数（含首次）
+- `baseDelayMs`: 首次重试等待毫秒
+- `maxDelayMs`: 指数退避最大等待毫秒
+- `retryStatusCodes`: 默认包含 `429` 和常见 `5xx`
+- `respectRetryAfter`: 如果服务端返回 `Retry-After`，优先按服务端节奏重试
+
+你可以全局改，也可以在单个 `request/claimList` 任务里单独覆盖 `requestPolicy`。
 
 ## 动态字段自动绑定
 
@@ -126,3 +143,10 @@ npm start
 - 适合 EVM 测试网、普通 HTTP 接口任务、链上合约交互
 - 不直接解决复杂验证码、浏览器指纹、前端加密、Solana 签名登录
 - 这些复杂场景仍然建议从当前仓库现有项目中抽模板二次扩展
+
+## 资料来源（用于这版能力完善）
+
+- HAR 1.2 结构（包含 `response.content.encoding` 字段）：https://w3c.github.io/web-performance/specs/HAR/Overview.html
+- Postman Collection v2.1 结构：https://schema.postman.com/json/collection/v2.1.0/docs/index.html
+- HTTP `429 Too Many Requests` 与 `Retry-After`：https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/429
+- SIWE（EIP-4361）签名登录格式：https://eips.ethereum.org/EIPS/eip-4361

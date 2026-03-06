@@ -1,0 +1,140 @@
+{
+  "info": {
+    "_postman_id": "11111111-2222-3333-4444-555555555555",
+    "name": "Script Generator Sample",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "auth",
+      "item": [
+        {
+          "name": "login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://demo.example.com/api/auth/login"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"demo@example.com\",\"password\":\"demo_pass\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ok",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\"data\":{\"token\":\"demo_token_value\",\"user\":{\"id\":101,\"wallet\":\"0x1111111111111111111111111111111111111111\"}}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "checkin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer demo_token_value"
+          }
+        ],
+        "url": {
+          "raw": "https://demo.example.com/api/checkin"
+        }
+      }
+    },
+    {
+      "name": "rewards",
+      "item": [
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer demo_token_value"
+              }
+            ],
+            "url": {
+              "raw": "https://demo.example.com/api/rewards/list"
+            }
+          },
+          "response": [
+            {
+              "name": "ok",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\"data\":{\"rewards\":[{\"id\":1,\"claimed\":false,\"projectId\":99},{\"id\":2,\"claimed\":true,\"projectId\":99}]}}"
+            }
+          ]
+        },
+        {
+          "name": "claim",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer demo_token_value"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://demo.example.com/api/rewards/1/claim"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rewardId\":1,\"projectId\":99,\"userId\":101}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "heartbeat",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer demo_token_value"
+          }
+        ],
+        "url": {
+          "raw": "https://demo.example.com/api/heartbeat"
+        }
+      }
+    }
+  ]
+}

@@ -205,6 +205,11 @@ async function runImportWizard(rl) {
         description: "浏览器 Network 导出的完整 HAR，更适合自动识别 token 路径。",
       },
       {
+        id: "postman",
+        label: "Postman Collection v2.1",
+        description: "支持导入 Postman 的 collection JSON，并自动解析请求示例。",
+      },
+      {
         id: "curl",
         label: "cURL 文本文件",
         description: "把浏览器复制出来的 cURL 命令保存成 txt 文件再导入。",
@@ -213,7 +218,7 @@ async function runImportWizard(rl) {
     0
   );
 
-  const inputPath = await ask(rl, "输入 HAR/txt 文件路径");
+  const inputPath = await ask(rl, "输入 HAR/Collection/txt 文件路径");
   const candidates = loadImportCandidates(importSource.id, inputPath);
   if (candidates.length === 0) {
     throw new Error("没有从抓包文件中解析出可导入请求。");
