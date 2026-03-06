@@ -57,6 +57,7 @@ npm start
 ## 输出结果
 生成器会在 `generated/项目名/` 下创建一个独立 Node.js 项目，包含：
 - `project.config.json`
+- `import.report.json`（导入模式下）
 - `main.js`
 - `lib/runner.js`
 - `data/` 示例文件
@@ -90,6 +91,7 @@ npm start
 - 自动把后续请求中的相同字面量替换成 `{{state.xxx}}`
 - 把请求里的 token 替换成 `{{state.token}}`
 - 把登录体里的 email/password 替换成 `{{account.xxx}}`
+- 自动把 Postman 变量 `{{xxx}}` 映射到 `{{state.xxx}} / {{account.xxx}} / {{env.xxx}}`
 - 路径表达式支持数组下标（如 `data.items[0].id`）
 - 默认请求重试策略（网络抖动、429、5xx）
 
@@ -115,6 +117,7 @@ npm start
 - `respectRetryAfter`: 如果服务端返回 `Retry-After`，优先按服务端节奏重试
 
 你可以全局改，也可以在单个 `request/claimList` 任务里单独覆盖 `requestPolicy`。
+另外，配置里出现的 `{{env.XYZ}}` 变量会自动写入 `.env.example`，减少手工遗漏。
 
 ## 动态字段自动绑定
 

@@ -4,6 +4,16 @@
     "name": "Script Generator Sample",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://demo.example.com"
+    },
+    {
+      "key": "projectId",
+      "value": "99"
+    }
+  ],
   "item": [
     {
       "name": "auth",
@@ -19,11 +29,11 @@
               }
             ],
             "url": {
-              "raw": "https://demo.example.com/api/auth/login"
+              "raw": "{{baseUrl}}/api/auth/login"
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"demo@example.com\",\"password\":\"demo_pass\"}",
+              "raw": "{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -53,11 +63,11 @@
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer demo_token_value"
+            "value": "Bearer {{token}}"
           }
         ],
         "url": {
-          "raw": "https://demo.example.com/api/checkin"
+          "raw": "{{baseUrl}}/api/checkin"
         }
       }
     },
@@ -71,11 +81,11 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer demo_token_value"
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
-              "raw": "https://demo.example.com/api/rewards/list"
+              "raw": "{{baseUrl}}/api/rewards/list"
             }
           },
           "response": [
@@ -98,7 +108,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer demo_token_value"
+                "value": "Bearer {{token}}"
               },
               {
                 "key": "Content-Type",
@@ -106,11 +116,11 @@
               }
             ],
             "url": {
-              "raw": "https://demo.example.com/api/rewards/1/claim"
+              "raw": "{{baseUrl}}/api/rewards/1/claim"
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"rewardId\":1,\"projectId\":99,\"userId\":101}",
+              "raw": "{\"rewardId\":1,\"projectId\":\"{{projectId}}\",\"userId\":101}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -128,11 +138,11 @@
         "header": [
           {
             "key": "Authorization",
-            "value": "Bearer demo_token_value"
+            "value": "Bearer {{token}}"
           }
         ],
         "url": {
-          "raw": "https://demo.example.com/api/heartbeat"
+          "raw": "{{baseUrl}}/api/heartbeat"
         }
       }
     }

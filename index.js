@@ -85,6 +85,63 @@ function summarizeImportedGroup(group) {
   return `推荐顺序 ${group.recommendedOrder} | ${kinds} | ${group.summary}`;
 }
 
+function buildImportReport({
+  importSource,
+  inputPath,
+  inferredAccountSource,
+  inferredAuthMode,
+  accountSource,
+  authMode,
+  selectedTaskGroups,
+  allCandidates,
+}) {
+  const candidateMap = new Map(allCandidates.map((candidate) => [candidate.id, candidate]));
+  const selectedCandidateIds = new Set(
+    selectedTaskGroups.flatMap((group) => group.sourceCandidateIds || [])
+  );
+
+  return {
+    generatedAt: new Date().toISOString(),
+    importSource,
+    importInputPath: path.resolve(inputPath),
+    inferred: {
+      accountSource: inferredAccountSource,
+      authMode: inferredAuthMode,
+    },
+    selected: {
+      accountSource,
+      authMode,
+      groupCount: selectedTaskGroups.length,
+      groups: selectedTaskGroups.map((group) => ({
+        id: group.id,
+        label: group.label,
+        summary: group.summary,
+        recommendedOrder: group.recommendedOrder,
+        sourceKinds: group.sourceKinds,
+        sourceCandidateIds: group.sourceCandidateIds,
+        taskType: group.task.type,
+        taskName: group.task.name,
+      })),
+    },
+    candidates: [...selectedCandidateIds].map((candidateId) => {
+      const candidate = candidateMap.get(candidateId);
+      if (!candidate) {
+        return { id: candidateId, missing: true };
+      }
+
+      return {
+        id: candidate.id,
+        sourceType: candidate.sourceType,
+        kind: candidate.kind,
+        name: candidate.name,
+        summary: candidate.summary,
+        method: candidate.method,
+        url: candidate.url,
+      };
+    }),
+  };
+}
+
 async function runWizard(rl) {
   const projectName = await ask(rl, "项目名", "my-testnet-bot");
 
@@ -425,6 +482,17 @@ async function runImportWizard(rl) {
     sourceKinds: group.sourceKinds,
   }));
 
+  const importReport = buildImportReport({
+    importSource: importSource.id,
+    inputPath,
+    inferredAccountSource,
+    inferredAuthMode,
+    accountSource: accountSource.id,
+    authMode: authMode.id,
+    selectedTaskGroups: finalizedPlan.taskGroups,
+    allCandidates: candidates,
+  });
+
   return createProject({
     projectName,
     outputDir,
@@ -447,6 +515,9 @@ async function runImportWizard(rl) {
       importedGroupCount: selectedTaskGroups.length,
       importedAuthMode: authMode.id,
       recommendedTaskOrder,
+    },
+    extraFiles: {
+      "import.report.json": `${JSON.stringify(importReport, null, 2)}\n`,
     },
   });
 }
