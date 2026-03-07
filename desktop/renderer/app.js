@@ -68,12 +68,15 @@ const elements = {
   wizardProjectName: document.getElementById("wizardProjectName"),
   wizardInputPath: document.getElementById("wizardInputPath"),
   wizardPickFile: document.getElementById("wizardPickFile"),
+  wizardCaptureHelp: document.getElementById("wizardCaptureHelp"),
   wizardAnalyze: document.getElementById("wizardAnalyze"),
   wizardGenerate: document.getElementById("wizardGenerate"),
   wizardOpenDir: document.getElementById("wizardOpenDir"),
   wizardStatus: document.getElementById("wizardStatus"),
   onboardingModal: document.getElementById("onboardingModal"),
   onboardingClose: document.getElementById("onboardingClose"),
+  captureGuideModal: document.getElementById("captureGuideModal"),
+  captureGuideClose: document.getElementById("captureGuideClose"),
 
   manualTemplate: document.getElementById("manualTemplate"),
   manualApplyTemplate: document.getElementById("manualApplyTemplate"),
@@ -97,6 +100,7 @@ const elements = {
   importSourceType: document.getElementById("importSourceType"),
   importInputPath: document.getElementById("importInputPath"),
   importPickFile: document.getElementById("importPickFile"),
+  importCaptureHelp: document.getElementById("importCaptureHelp"),
   importOutputDir: document.getElementById("importOutputDir"),
   importPickOutput: document.getElementById("importPickOutput"),
   importAccountSource: document.getElementById("importAccountSource"),
@@ -146,6 +150,20 @@ function closeOnboarding() {
   }
   window.localStorage.setItem(ONBOARDING_KEY, "1");
   elements.onboardingModal.classList.add("hidden");
+}
+
+function openCaptureGuide() {
+  if (!elements.captureGuideModal) {
+    return;
+  }
+  elements.captureGuideModal.classList.remove("hidden");
+}
+
+function closeCaptureGuide() {
+  if (!elements.captureGuideModal) {
+    return;
+  }
+  elements.captureGuideModal.classList.add("hidden");
 }
 
 function buildAuthModes(accountSource, preferred = "none") {
@@ -693,6 +711,24 @@ if (elements.onboardingClose) {
   elements.onboardingClose.addEventListener("click", closeOnboarding);
 }
 
+if (elements.captureGuideClose) {
+  elements.captureGuideClose.addEventListener("click", closeCaptureGuide);
+}
+
+if (elements.captureGuideModal) {
+  elements.captureGuideModal.addEventListener("click", (event) => {
+    if (event.target === elements.captureGuideModal) {
+      closeCaptureGuide();
+    }
+  });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeCaptureGuide();
+  }
+});
+
 elements.noviceMode.addEventListener("change", () => {
   applyNoviceMode(elements.noviceMode.checked);
 });
@@ -758,6 +794,9 @@ elements.wizardPickFile.addEventListener("click", async () => {
     elements.importInputPath.value = selected;
   }
 });
+
+elements.wizardCaptureHelp.addEventListener("click", openCaptureGuide);
+elements.importCaptureHelp.addEventListener("click", openCaptureGuide);
 
 elements.manualGenerate.addEventListener("click", generateManual);
 elements.manualQuickGenerate.addEventListener("click", generateManualQuick);

@@ -60,6 +60,7 @@
                   <input id="wizardInputPath" type="text" />
                   <button id="wizardPickFile" type="button">选择文件</button>
                 </div>
+                <button id="wizardCaptureHelp" class="help-btn" type="button">不会抓包？点这里</button>
               </div>
             </div>
           </div>
@@ -193,6 +194,7 @@
               <input id="importInputPath" type="text" />
               <button id="importPickFile" type="button">选择</button>
             </div>
+            <button id="importCaptureHelp" class="help-btn" type="button">不会抓包？点这里</button>
           </label>
           <label class="advanced-only">
             输出目录
@@ -268,6 +270,25 @@
         </ol>
         <div class="onboarding-actions">
           <button id="onboardingClose" class="primary" type="button">我知道了，开始使用</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="captureGuideModal" class="onboarding hidden">
+      <div class="onboarding-card">
+        <h2>不会抓包？按这个流程做（HAR 推荐）</h2>
+        <ol>
+          <li>打开目标网站，按 <code>F12</code> 打开开发者工具。</li>
+          <li>切到 <code>Network / 网络</code>，勾选 <code>Preserve log / 保留日志</code>。</li>
+          <li>点清空（垃圾桶图标），从“登录”开始完整操作一遍任务。</li>
+          <li>请求列表空白处右键，点 <code>Save all as HAR with content</code>。</li>
+          <li>保存得到 <code>.har</code> 文件，然后回软件里选择这个文件。</li>
+        </ol>
+        <p class="capture-tip">
+          提示：HAR 可能包含 token/cookie，请勿发给他人，也不要上传公开仓库。
+        </p>
+        <div class="onboarding-actions">
+          <button id="captureGuideClose" class="primary" type="button">我会了，继续</button>
         </div>
       </div>
     </div>
