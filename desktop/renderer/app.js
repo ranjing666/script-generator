@@ -72,6 +72,8 @@ const elements = {
   wizardGenerate: document.getElementById("wizardGenerate"),
   wizardOpenDir: document.getElementById("wizardOpenDir"),
   wizardStatus: document.getElementById("wizardStatus"),
+  onboardingModal: document.getElementById("onboardingModal"),
+  onboardingClose: document.getElementById("onboardingClose"),
 
   manualTemplate: document.getElementById("manualTemplate"),
   manualApplyTemplate: document.getElementById("manualApplyTemplate"),
@@ -115,12 +117,35 @@ const elements = {
   importGroupList: document.getElementById("importGroupList"),
 };
 
+const ONBOARDING_KEY = "script_generator_onboarding_seen_v2";
+
 function setStatus(element, text, kind = "") {
   element.classList.remove("warn", "error");
   if (kind) {
     element.classList.add(kind);
   }
   element.textContent = text;
+}
+
+function showOnboardingIfNeeded() {
+  if (!elements.onboardingModal) {
+    return;
+  }
+
+  const seen = window.localStorage.getItem(ONBOARDING_KEY);
+  if (seen === "1") {
+    elements.onboardingModal.classList.add("hidden");
+    return;
+  }
+  elements.onboardingModal.classList.remove("hidden");
+}
+
+function closeOnboarding() {
+  if (!elements.onboardingModal) {
+    return;
+  }
+  window.localStorage.setItem(ONBOARDING_KEY, "1");
+  elements.onboardingModal.classList.add("hidden");
 }
 
 function buildAuthModes(accountSource, preferred = "none") {
@@ -657,11 +682,16 @@ async function bootstrap() {
 
   applyNoviceMode(true);
   toggleTabs("wizard");
+  showOnboardingIfNeeded();
 }
 
 elements.tabWizard.addEventListener("click", () => toggleTabs("wizard"));
 elements.tabManual.addEventListener("click", () => toggleTabs("manual"));
 elements.tabImport.addEventListener("click", () => toggleTabs("import"));
+
+if (elements.onboardingClose) {
+  elements.onboardingClose.addEventListener("click", closeOnboarding);
+}
 
 elements.noviceMode.addEventListener("change", () => {
   applyNoviceMode(elements.noviceMode.checked);

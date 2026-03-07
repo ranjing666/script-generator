@@ -28,6 +28,27 @@
     <main>
       <section id="panelWizard" class="panel">
         <h2>新手向导（1-2-3）</h2>
+        <div class="intro-card">
+          <div class="intro-title">这个软件是干什么的？</div>
+          <div class="intro-grid">
+            <div>
+              <strong>输入</strong>
+              <p>项目方网站抓包文件（HAR / Postman / cURL）。</p>
+            </div>
+            <div>
+              <strong>输出</strong>
+              <p>一个可运行的 Node.js 脚本项目（含配置、任务、数据模板）。</p>
+            </div>
+            <div>
+              <strong>适合</strong>
+              <p>测试网签到、领水、API 任务、链上交互自动化。</p>
+            </div>
+            <div>
+              <strong>不解决</strong>
+              <p>复杂验证码、强依赖浏览器指纹、前端加密逆向。</p>
+            </div>
+          </div>
+        </div>
         <div class="wizard-steps">
           <div class="step-card">
             <div class="step-index">1</div>
@@ -235,6 +256,21 @@
         <div id="importGroupList" class="checklist advanced-only"></div>
       </section>
     </main>
+
+    <div id="onboardingModal" class="onboarding hidden">
+      <div class="onboarding-card">
+        <h2>欢迎使用 风的工具箱v1.1.0</h2>
+        <p>这是一个“抓包转脚本”的生成器，不是直接跑空投机器人。</p>
+        <ol>
+          <li>准备一个抓包文件（HAR 优先）。</li>
+          <li>在新手向导里点“开始自动分析”。</li>
+          <li>点“一键生成”，按状态区命令运行项目。</li>
+        </ol>
+        <div class="onboarding-actions">
+          <button id="onboardingClose" class="primary" type="button">我知道了，开始使用</button>
+        </div>
+      </div>
+    </div>
 
     <script src="./app.js"></script>
   </body>
