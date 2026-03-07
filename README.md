@@ -7,6 +7,8 @@
 - [BEGINNER_SCREENSHOT_GUIDE_ZH.md](./BEGINNER_SCREENSHOT_GUIDE_ZH.md)
 - [DESKTOP_INSTALL_GUIDE_ZH.md](./DESKTOP_INSTALL_GUIDE_ZH.md)
 - [DESKTOP_SCREENSHOT_GUIDE_ZH.md](./DESKTOP_SCREENSHOT_GUIDE_ZH.md)
+- [DESKTOP_3STEP_GUIDE_ZH.md](./DESKTOP_3STEP_GUIDE_ZH.md)
+- [BENCHMARK_NOTES_ZH.md](./BENCHMARK_NOTES_ZH.md)
 
 ## 小白直接安装（推荐）
 
@@ -15,6 +17,13 @@
 - 资产文件：`风的工具箱v<version>-Setup-x64.exe`
 
 下载安装后，直接打开 `风的工具箱v1.1.0` 图形界面使用。
+
+## 这次升级重点（更简单）
+
+- 新增 `小白模式`：默认隐藏高级选项，只保留必须输入项
+- 新增 `模板库`：预置“账号密码签到 / Token 保活 / EVM 日常任务”
+- 新增 `一键导入`：自动识别抓包类型 + 自动分析 + 自动生成
+- 生成成功后自动给出“下一步命令清单”（安装依赖、运行脚本）
 
 ## 目标
 - 把常见测试网任务拆成可拼接的积木
@@ -195,3 +204,10 @@ npm run check
 - HTTP `429 Too Many Requests` 与 `Retry-After`：https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/429
 - SIWE（EIP-4361）签名登录格式：https://eips.ethereum.org/EIPS/eip-4361
 - SIWE 官方站点（实现与流程参考）：https://docs.login.xyz/
+
+## 借鉴项目（本次简化方向）
+
+- n8n（可视化工作流 + 模板思路）：https://github.com/n8n-io/n8n
+- Node-RED（流式节点/低门槛编排思路）：https://github.com/node-red/node-red
+- Bruno（本地优先、文件可读可改思路）：https://github.com/usebruno/bruno
+- Hoppscotch（API 导入与集合管理思路）：https://github.com/hoppscotch/hoppscotch

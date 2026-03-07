@@ -72,6 +72,10 @@ function registerIpcHandlers() {
     return desktopService.analyzeImport(options || {});
   });
 
+  ipcMain.handle("import:detect-source", async (_, inputPath) => {
+    return desktopService.detectImportSourceType(inputPath);
+  });
+
   ipcMain.handle("project:generate-manual", async (_, options) => {
     return desktopService.generateManualProject({
       ...(options || {}),

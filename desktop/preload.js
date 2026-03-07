@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
   analyzeImport(options) {
     return invoke("import:analyze", options);
   },
+  detectImportSourceType(inputPath) {
+    return invoke("import:detect-source", inputPath);
+  },
   generateManualProject(options) {
     return invoke("project:generate-manual", options);
   },

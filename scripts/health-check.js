@@ -227,6 +227,10 @@ function main() {
   runPackageNameFallbackCheck();
   const desktopPresets = desktopService.listPresets("privateKeys");
   assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");
+  const detectedHar = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample.har"));
+  assert(detectedHar.sourceType === "har", "detectImportSourceType: har mismatch");
+  const detectedCurl = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample-curl.txt"));
+  assert(detectedCurl.sourceType === "curl", "detectImportSourceType: curl mismatch");
   console.log("[PASS] desktop-service");
   console.log("health-check: all passed");
 }

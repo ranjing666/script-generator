@@ -12,28 +12,46 @@
         <h1>风的工具箱v1.1.0</h1>
         <p id="metaText">加载中...</p>
       </div>
-      <div class="tabs">
-        <button id="tabManual" class="tab-btn active">手动拼接</button>
-        <button id="tabImport" class="tab-btn">抓包导入</button>
+      <div class="topbar-right">
+        <label class="switch-row">
+          <input id="noviceMode" type="checkbox" checked />
+          小白模式（隐藏高级选项）
+        </label>
+        <div class="tabs">
+          <button id="tabManual" class="tab-btn active">手动拼接</button>
+          <button id="tabImport" class="tab-btn">抓包导入</button>
+        </div>
       </div>
     </header>
 
     <main>
       <section id="panelManual" class="panel">
         <h2>手动拼接模式</h2>
+
+        <div class="hero-card">
+          <div class="hero-title">模板库（推荐）</div>
+          <div class="hero-row">
+            <select id="manualTemplate"></select>
+            <button id="manualApplyTemplate" type="button">套用模板</button>
+            <button id="manualQuickGenerate" class="primary" type="button">
+              一键生成（小白）
+            </button>
+          </div>
+        </div>
+
         <div class="grid">
           <label>
             项目名
             <input id="manualProjectName" type="text" value="desktop-manual-bot" />
           </label>
-          <label>
+          <label class="advanced-only">
             输出目录
             <div class="inline">
               <input id="manualOutputDir" type="text" />
               <button id="manualPickOutput" type="button">选择</button>
             </div>
           </label>
-          <label>
+          <label class="advanced-only">
             账号来源
             <select id="manualAccountSource">
               <option value="privateKeys">privateKeys</option>
@@ -41,37 +59,37 @@
               <option value="accounts">accounts</option>
             </select>
           </label>
-          <label>
+          <label class="advanced-only">
             账号字段（accounts 模式）
             <input id="manualAccountFields" type="text" placeholder="email,password" />
           </label>
-          <label>
+          <label class="advanced-only">
             登录模式
             <select id="manualAuthMode"></select>
           </label>
-          <label>
+          <label class="advanced-only">
             并发账号数
             <input id="manualConcurrency" type="number" min="1" value="3" />
           </label>
-          <label class="checkbox-line">
+          <label class="checkbox-line advanced-only">
             <input id="manualUseProxy" type="checkbox" />
             使用代理文件 data/proxies.txt
           </label>
-          <label class="checkbox-line">
+          <label class="checkbox-line advanced-only">
             <input id="manualRepeat" type="checkbox" />
             循环执行
           </label>
-          <label>
+          <label class="advanced-only">
             循环间隔（分钟）
             <input id="manualInterval" type="number" min="1" value="60" />
           </label>
         </div>
 
-        <h3>任务积木</h3>
-        <div id="manualPresetList" class="checklist"></div>
+        <h3 class="advanced-only">任务积木（高级可自选）</h3>
+        <div id="manualPresetList" class="checklist advanced-only"></div>
 
         <div class="actions">
-          <button id="manualGenerate" class="primary">生成项目</button>
+          <button id="manualGenerate" class="advanced-only">按当前配置生成</button>
           <button id="manualOpenDir" disabled>打开输出目录</button>
         </div>
         <pre id="manualStatus" class="status"></pre>
@@ -79,6 +97,17 @@
 
       <section id="panelImport" class="panel hidden">
         <h2>抓包导入模式</h2>
+
+        <div class="hero-card">
+          <div class="hero-title">一键导入（推荐）</div>
+          <div class="hero-row">
+            <button id="importQuickGenerate" class="primary" type="button">
+              自动识别 + 一键生成
+            </button>
+            <button id="importDetect" type="button">只识别抓包类型</button>
+          </div>
+        </div>
+
         <div class="grid">
           <label>
             项目名
@@ -87,6 +116,7 @@
           <label>
             抓包类型
             <select id="importSourceType">
+              <option value="auto">auto（自动识别）</option>
               <option value="har">har</option>
               <option value="postman">postman</option>
               <option value="curl">curl</option>
@@ -99,14 +129,14 @@
               <button id="importPickFile" type="button">选择</button>
             </div>
           </label>
-          <label>
+          <label class="advanced-only">
             输出目录
             <div class="inline">
               <input id="importOutputDir" type="text" />
               <button id="importPickOutput" type="button">选择</button>
             </div>
           </label>
-          <label>
+          <label class="advanced-only">
             账号来源
             <select id="importAccountSource">
               <option value="privateKeys">privateKeys</option>
@@ -114,51 +144,51 @@
               <option value="accounts">accounts</option>
             </select>
           </label>
-          <label>
+          <label class="advanced-only">
             账号字段（accounts 模式）
             <input id="importAccountFields" type="text" placeholder="email,password" />
           </label>
-          <label>
+          <label class="advanced-only">
             登录模式
             <select id="importAuthMode"></select>
           </label>
-          <label>
+          <label class="advanced-only">
             登录请求（auth_login）
             <select id="importLoginCandidate"></select>
           </label>
-          <label>
+          <label class="advanced-only">
             nonce 请求（auth_nonce）
             <select id="importNonceCandidate"></select>
           </label>
-          <label>
+          <label class="advanced-only">
             并发账号数
             <input id="importConcurrency" type="number" min="1" value="3" />
           </label>
-          <label class="checkbox-line">
+          <label class="checkbox-line advanced-only">
             <input id="importUseProxy" type="checkbox" />
             使用代理文件 data/proxies.txt
           </label>
-          <label class="checkbox-line">
+          <label class="checkbox-line advanced-only">
             <input id="importRepeat" type="checkbox" />
             循环执行
           </label>
-          <label>
+          <label class="advanced-only">
             循环间隔（分钟）
             <input id="importInterval" type="number" min="1" value="60" />
           </label>
         </div>
 
         <div class="actions">
-          <button id="importAnalyze">分析抓包</button>
-          <button id="importGenerate" class="primary">生成项目</button>
+          <button id="importAnalyze" class="advanced-only">分析抓包</button>
+          <button id="importGenerate" class="advanced-only">按当前配置生成</button>
           <button id="importOpenDir" disabled>打开输出目录</button>
         </div>
 
         <h3>分析结果</h3>
         <pre id="importSummary" class="status"></pre>
 
-        <h3>任务组（默认全选）</h3>
-        <div id="importGroupList" class="checklist"></div>
+        <h3 class="advanced-only">任务组（高级模式可自选）</h3>
+        <div id="importGroupList" class="checklist advanced-only"></div>
       </section>
     </main>
 
