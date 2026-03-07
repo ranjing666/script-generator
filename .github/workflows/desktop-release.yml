@@ -28,7 +28,15 @@ jobs:
         run: npm run check
 
       - name: Build Windows installer
-        run: npm run dist:win
+        shell: pwsh
+        run: |
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            $appVersion = "${{ github.ref_name }}".TrimStart("v")
+            Write-Host "Tag build detected, override app version to: $appVersion"
+            npx electron-builder --win nsis --x64 --publish never "-c.extraMetadata.version=$appVersion"
+          } else {
+            npm run dist:win
+          }
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
