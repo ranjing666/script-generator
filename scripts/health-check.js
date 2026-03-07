@@ -32,6 +32,19 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function assertDesktopIconAssets() {
+  const iconPngPath = path.join(ROOT, "desktop", "assets", "icon.png");
+  const iconIcoPath = path.join(ROOT, "desktop", "assets", "icon.ico");
+
+  [iconPngPath, iconIcoPath].forEach((filePath) => {
+    assert(fs.existsSync(filePath), `missing desktop icon asset: ${path.basename(filePath)}`);
+    const size = fs.statSync(filePath).size;
+    assert(size > 0, `empty desktop icon asset: ${path.basename(filePath)}`);
+  });
+
+  console.log("[PASS] desktop-icon-assets");
+}
+
 function assertStarterFiles(outputDir, label) {
   const envExamplePath = path.join(outputDir, ".env.example");
   const envPath = path.join(outputDir, ".env");
@@ -247,6 +260,7 @@ function main() {
   runNodeCheck(path.join(ROOT, "desktop", "preload.js"));
   runNodeCheck(path.join(ROOT, "desktop", "renderer", "app.js"));
   console.log("[PASS] syntax-check");
+  assertDesktopIconAssets();
 
   runImportSmokeCase({
     label: "har",

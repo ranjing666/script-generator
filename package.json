@@ -1,6 +1,6 @@
 {
   "name": "testnet-script-generator",
-  "version": "1.1.13",
+  "version": "1.1.14",
   "private": true,
   "description": "Interactive generator for modular testnet automation scripts",
   "author": "ranjing666",
@@ -9,6 +9,7 @@
     "start": "node index.js",
     "create": "node index.js",
     "desktop": "electron .",
+    "build:icon": "powershell -ExecutionPolicy Bypass -File scripts/generate-app-icon.ps1",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "check": "node scripts/health-check.js"
   },
@@ -36,6 +37,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "desktop/assets/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -47,6 +49,9 @@
       "artifactName": "风的工具箱-${version}-Setup-${arch}.${ext}"
     },
     "nsis": {
+      "installerIcon": "desktop/assets/icon.ico",
+      "uninstallerIcon": "desktop/assets/icon.ico",
+      "installerHeaderIcon": "desktop/assets/icon.ico",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
