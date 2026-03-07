@@ -27,7 +27,7 @@ function getDefaultOutputRoot() {
 function registerIpcHandlers() {
   ipcMain.handle("system:get-meta", async () => {
     return {
-      appName: "风的工具箱v1.1.0",
+      appName: "风的工具箱",
       appVersion: app.getVersion(),
       platform: process.platform,
       defaultOutputRoot: getDefaultOutputRoot(),

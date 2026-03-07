@@ -3,13 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>风的工具箱v1.1.0</title>
+    <title>风的工具箱</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="bg-decor" aria-hidden="true">
+      <span class="orb orb-a"></span>
+      <span class="orb orb-b"></span>
+      <span class="orb orb-c"></span>
+      <span class="mesh"></span>
+    </div>
+
     <header class="topbar">
-      <div>
-        <h1>风的工具箱v1.1.0</h1>
+      <div class="brand-block">
+        <p class="brand-kicker">VISUAL SCRIPT BUILDER</p>
+        <h1>风的工具箱</h1>
         <p id="metaText">加载中...</p>
       </div>
       <div class="topbar-right">
@@ -264,7 +272,7 @@
 
     <div id="onboardingModal" class="onboarding hidden">
       <div class="onboarding-card">
-        <h2>欢迎使用 风的工具箱v1.1.0</h2>
+        <h2>欢迎使用 风的工具箱</h2>
         <p>这是一个“抓包转脚本”的生成器，不是直接跑空投机器人。</p>
         <ol>
           <li>准备一个抓包文件（HAR 优先）。</li>

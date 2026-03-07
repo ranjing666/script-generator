@@ -14,7 +14,7 @@
 - Releases: `https://github.com/ranjing666/script-generator/releases`
 - 资产文件：`*Setup-x64.exe`
 
-下载安装后，直接打开 `风的工具箱v1.1.0` 图形界面使用。
+下载安装后，直接打开 `风的工具箱` 图形界面使用。
 
 ## 这次升级重点（更简单）
 

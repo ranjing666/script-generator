@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "com.ranjing.fengtoolbox",
-    "productName": "风的工具箱v1.1.0",
+    "productName": "风的工具箱",
     "asar": true,
     "directories": {
       "output": "release"
@@ -44,7 +44,7 @@
           ]
         }
       ],
-      "artifactName": "风的工具箱v${version}-Setup-${arch}.${ext}"
+      "artifactName": "风的工具箱-${version}-Setup-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
