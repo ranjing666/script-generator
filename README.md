@@ -2,19 +2,17 @@
 
 这是一个面向当前仓库场景做的交互式脚本生成器。
 
-零基础先看：
-- [BEGINNER_GUIDE_ZH.md](./BEGINNER_GUIDE_ZH.md)
-- [BEGINNER_SCREENSHOT_GUIDE_ZH.md](./BEGINNER_SCREENSHOT_GUIDE_ZH.md)
-- [DESKTOP_INSTALL_GUIDE_ZH.md](./DESKTOP_INSTALL_GUIDE_ZH.md)
-- [DESKTOP_SCREENSHOT_GUIDE_ZH.md](./DESKTOP_SCREENSHOT_GUIDE_ZH.md)
-- [DESKTOP_3STEP_GUIDE_ZH.md](./DESKTOP_3STEP_GUIDE_ZH.md)
+零基础唯一入口：
+- [NEWBIE_GUIDE_ZH.md](./NEWBIE_GUIDE_ZH.md)
+
+开发/对标参考：
 - [BENCHMARK_NOTES_ZH.md](./BENCHMARK_NOTES_ZH.md)
 
 ## 小白直接安装（推荐）
 
 不想配 Node.js，直接下载 Windows 安装包：
 - Releases: `https://github.com/ranjing666/script-generator/releases`
-- 资产文件：`风的工具箱v<version>-Setup-x64.exe`
+- 资产文件：`*Setup-x64.exe`
 
 下载安装后，直接打开 `风的工具箱v1.1.0` 图形界面使用。
 

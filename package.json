@@ -31,11 +31,7 @@
       "scripts/health-check.js",
       "index.js",
       "README.md",
-      "BEGINNER_GUIDE_ZH.md",
-      "BEGINNER_SCREENSHOT_GUIDE_ZH.md",
-      "DESKTOP_INSTALL_GUIDE_ZH.md",
-      "DESKTOP_SCREENSHOT_GUIDE_ZH.md",
-      "DESKTOP_3STEP_GUIDE_ZH.md",
+      "NEWBIE_GUIDE_ZH.md",
       "BENCHMARK_NOTES_ZH.md",
       "package.json"
     ],
