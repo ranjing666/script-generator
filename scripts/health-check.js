@@ -104,7 +104,12 @@ function runImportSmokeCase({ label, sourceType, fileName, expect }) {
   });
 
   const config = readJson(path.join(outputDir, "project.config.json"));
+  const runnerSource = fs.readFileSync(path.join(outputDir, "lib", "runner.js"), "utf8");
   runNodeCheck(path.join(outputDir, "lib", "runner.js"));
+  assert(
+    runnerSource.includes("/^\\d+$/.test(tokenValue)"),
+    `${label}: splitPath 数组下标正则转义异常`
+  );
 
   if (expect.accountSource) {
     assert(
