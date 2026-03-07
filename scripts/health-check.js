@@ -172,6 +172,45 @@ function runPackageNameFallbackCheck() {
   console.log("[PASS] package-name-fallback");
 }
 
+function expectThrows(fn, label, expectedText) {
+  let thrown = false;
+  try {
+    fn();
+  } catch (error) {
+    thrown = true;
+    const text = String(error && error.message ? error.message : error);
+    assert(text.includes(expectedText), `${label}: unexpected error message -> ${text}`);
+  }
+  assert(thrown, `${label}: expected throw`);
+  console.log(`[PASS] ${label}`);
+}
+
+function runInvalidImportChecks() {
+  const invalidHarPath = path.join(ROOT, "generated", "health-invalid.har");
+  fs.writeFileSync(invalidHarPath, "{ bad json", "utf8");
+  expectThrows(
+    () =>
+      desktopService.analyzeImport({
+        sourceType: "har",
+        inputPath: invalidHarPath,
+      }),
+    "invalid-har-json",
+    "HAR 文件不是有效 JSON"
+  );
+
+  const invalidPostmanPath = path.join(ROOT, "generated", "health-invalid-postman.json");
+  fs.writeFileSync(invalidPostmanPath, JSON.stringify({ info: { name: "demo" } }, null, 2), "utf8");
+  expectThrows(
+    () =>
+      desktopService.analyzeImport({
+        sourceType: "postman",
+        inputPath: invalidPostmanPath,
+      }),
+    "invalid-postman-structure",
+    "缺少 item 列表"
+  );
+}
+
 function main() {
   runNodeCheck(path.join(ROOT, "index.js"));
   runNodeCheck(path.join(ROOT, "lib", "importer.js"));
@@ -230,6 +269,7 @@ function main() {
   });
 
   runPackageNameFallbackCheck();
+  runInvalidImportChecks();
   const desktopPresets = desktopService.listPresets("privateKeys");
   assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");
   const detectedHar = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample.har"));
