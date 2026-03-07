@@ -32,6 +32,30 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function assertStarterFiles(outputDir, label) {
+  const envExamplePath = path.join(outputDir, ".env.example");
+  const envPath = path.join(outputDir, ".env");
+  const starterGuidePath = path.join(outputDir, "00-先看这里-零基础说明.md");
+  const installScriptPath = path.join(outputDir, "1-双击-安装依赖.bat");
+  const startScriptPath = path.join(outputDir, "2-双击-启动脚本.bat");
+
+  [envExamplePath, envPath, starterGuidePath, installScriptPath, startScriptPath].forEach((filePath) => {
+    assert(fs.existsSync(filePath), `${label}: missing generated helper file ${path.basename(filePath)}`);
+  });
+
+  const envExampleText = fs.readFileSync(envExamplePath, "utf8");
+  const envText = fs.readFileSync(envPath, "utf8");
+  const starterGuideText = fs.readFileSync(starterGuidePath, "utf8");
+  const installScriptText = fs.readFileSync(installScriptPath, "utf8");
+  const startScriptText = fs.readFileSync(startScriptPath, "utf8");
+
+  assert(envText === envExampleText, `${label}: .env should match .env.example on generation`);
+  assert(starterGuideText.includes("1-双击-安装依赖.bat"), `${label}: starter guide missing install helper`);
+  assert(installScriptText.includes("npm install"), `${label}: install helper missing npm install`);
+  assert(startScriptText.includes("npm start"), `${label}: start helper missing npm start`);
+  console.log(`[PASS] ${label}-starter-files`);
+}
+
 function runImportSmokeCase({ label, sourceType, fileName, expect }) {
   const inputPath = path.join(ROOT, "examples", fileName);
   const candidates = loadImportCandidates(sourceType, inputPath);
@@ -106,6 +130,7 @@ function runImportSmokeCase({ label, sourceType, fileName, expect }) {
   const config = readJson(path.join(outputDir, "project.config.json"));
   const runnerSource = fs.readFileSync(path.join(outputDir, "lib", "runner.js"), "utf8");
   runNodeCheck(path.join(outputDir, "lib", "runner.js"));
+  assertStarterFiles(outputDir, label);
   assert(
     runnerSource.includes("/^\\d+$/.test(tokenValue)"),
     `${label}: splitPath 数组下标正则转义异常`
@@ -168,6 +193,7 @@ function runPackageNameFallbackCheck() {
   });
 
   const packageJson = readJson(path.join(outputDir, "package.json"));
+  assertStarterFiles(outputDir, "package-name-fallback");
   assert(packageJson.name === "generated-testnet-bot", "package name fallback failed");
   console.log("[PASS] package-name-fallback");
 }

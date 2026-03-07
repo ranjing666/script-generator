@@ -581,7 +581,7 @@ function buildDiagnosticsForStatus({ mode, text, kind, analysis, accountSource }
       buildDiagnosisCard(
         "success",
         "下一步就做这三件事",
-        "进入输出目录后依次运行：`npm install`、`copy .env.example .env`、`npm start`。第一次先别急着改太多，优先确认能启动。"
+        "进入输出目录后，先双击 `1-双击-安装依赖.bat`，再检查 `.env` 和 `data/`，最后双击 `2-双击-启动脚本.bat`。第一次先别急着改太多，优先确认能启动。"
       )
     );
     diagnostics.push(
@@ -697,10 +697,10 @@ function buildRunChecklist(outputDir) {
     "",
     "下一步（照着做就行）:",
     `1. 进入目录: ${outputDir}`,
-    "2. 安装依赖: npm install",
-    "3. 复制配置模板(Windows): copy .env.example .env",
-    "4. 打开 .env 按需填写（不会填就先留空，先跑起来）",
-    "5. 启动脚本: npm start",
+    "2. 双击: 1-双击-安装依赖.bat",
+    "3. 打开: .env 和 data/ 目录里的示例文件，改成你自己的值",
+    "4. 双击: 2-双击-启动脚本.bat",
+    "5. 看不懂时，先打开: 00-先看这里-零基础说明.md",
   ].join("\n");
 }
 
