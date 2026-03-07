@@ -312,6 +312,13 @@ function main() {
   runInvalidImportChecks();
   const desktopPresets = desktopService.listPresets("privateKeys");
   assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");
+  const desktopAnalysis = desktopService.analyzeImport({
+    sourceType: "har",
+    inputPath: path.join(ROOT, "examples", "sample.har"),
+  });
+  assert(Array.isArray(desktopAnalysis.candidates) && desktopAnalysis.candidates.length > 0, "desktop analyzeImport candidates unavailable");
+  assert(typeof desktopAnalysis.candidates[0].headers === "object", "desktop analyzeImport candidate headers missing");
+  assert("hasResponseBody" in desktopAnalysis.candidates[0], "desktop analyzeImport candidate response flag missing");
   const detectedHar = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample.har"));
   assert(detectedHar.sourceType === "har", "detectImportSourceType: har mismatch");
   const detectedCurl = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample-curl.txt"));

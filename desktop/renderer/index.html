@@ -122,6 +122,14 @@
               一键生成（小白）
             </button>
           </div>
+          <div class="template-toolbar">
+            <input
+              id="manualTemplateSearch"
+              type="text"
+              placeholder="搜关键字：签到 / 钱包 / token / 链上"
+            />
+            <div id="manualTemplateFilters" class="chip-row"></div>
+          </div>
           <div id="manualTemplateGallery" class="template-gallery"></div>
         </div>
 
@@ -294,11 +302,15 @@
             </div>
           </section>
           <section class="analysis-card">
+            <div class="hero-title">导入支持范围</div>
+            <div id="importCoverageList" class="coverage-list"></div>
+          </section>
+          <section class="analysis-card">
             <div class="hero-title">系统建议</div>
             <div id="importSuggestionList" class="advice-list"></div>
           </section>
           <section class="analysis-card">
-            <div class="hero-title">识别到的请求预览</div>
+            <div class="hero-title">识别到的请求预览（可复制代码）</div>
             <div id="importCandidateList" class="candidate-list"></div>
           </section>
         </div>

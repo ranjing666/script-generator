@@ -35,4 +35,7 @@ contextBridge.exposeInMainWorld("desktopApi", {
   openPath(targetPath) {
     return invoke("shell:open-path", targetPath);
   },
+  copyText(text) {
+    return invoke("system:copy-text", text);
+  },
 });

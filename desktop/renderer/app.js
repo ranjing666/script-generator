@@ -9,6 +9,8 @@ const state = {
   wizardAnalysis: null,
   noviceMode: true,
   recentImports: [],
+  manualTemplateSearch: "",
+  manualTemplateFilter: "all",
 };
 
 const MANUAL_TEMPLATES = [
@@ -145,6 +147,8 @@ const elements = {
   manualTemplate: document.getElementById("manualTemplate"),
   manualApplyTemplate: document.getElementById("manualApplyTemplate"),
   manualQuickGenerate: document.getElementById("manualQuickGenerate"),
+  manualTemplateSearch: document.getElementById("manualTemplateSearch"),
+  manualTemplateFilters: document.getElementById("manualTemplateFilters"),
   manualProjectName: document.getElementById("manualProjectName"),
   manualOutputDir: document.getElementById("manualOutputDir"),
   manualPickOutput: document.getElementById("manualPickOutput"),
@@ -190,6 +194,7 @@ const elements = {
   importConfidenceMeter: document.getElementById("importConfidenceMeter"),
   importConfidenceText: document.getElementById("importConfidenceText"),
   importConfidenceNotes: document.getElementById("importConfidenceNotes"),
+  importCoverageList: document.getElementById("importCoverageList"),
   importSuggestionList: document.getElementById("importSuggestionList"),
   importCandidateList: document.getElementById("importCandidateList"),
   importGroupList: document.getElementById("importGroupList"),
@@ -754,13 +759,95 @@ function renderManualTemplates() {
   });
 }
 
+function normalizeForSearch(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getManualTemplateFilterOptions() {
+  const tags = new Set();
+  MANUAL_TEMPLATES.forEach((template) => {
+    (template.marketTags || []).forEach((tag) => tags.add(tag));
+  });
+
+  return [
+    { id: "all", label: "全部" },
+    ...[...tags].map((tag) => ({
+      id: tag,
+      label: tag,
+    })),
+  ];
+}
+
+function getFilteredManualTemplates() {
+  const keyword = normalizeForSearch(state.manualTemplateSearch);
+  const activeFilter = state.manualTemplateFilter || "all";
+
+  return MANUAL_TEMPLATES.filter((template) => {
+    const matchesFilter =
+      activeFilter === "all" || (template.marketTags || []).includes(activeFilter);
+    if (!matchesFilter) {
+      return false;
+    }
+
+    if (!keyword) {
+      return true;
+    }
+
+    const searchBlob = [
+      template.label,
+      template.summary,
+      template.fitFor,
+      ...(template.marketTags || []),
+      ...(template.presetIds || []).map((presetId) => PRESET_LABELS[presetId] || presetId),
+      ACCOUNT_SOURCE_LABELS[template.accountSource] || template.accountSource,
+      AUTH_MODE_LABELS[template.authMode] || template.authMode,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return normalizeForSearch(searchBlob).includes(keyword);
+  });
+}
+
+function renderManualTemplateFilters() {
+  if (!elements.manualTemplateFilters) {
+    return;
+  }
+
+  elements.manualTemplateFilters.innerHTML = "";
+  getManualTemplateFilterOptions().forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "filter-chip";
+    if ((state.manualTemplateFilter || "all") === option.id) {
+      button.classList.add("active");
+    }
+    button.textContent = option.label;
+    button.addEventListener("click", () => {
+      state.manualTemplateFilter = option.id;
+      renderManualTemplateFilters();
+      renderManualTemplateGallery();
+    });
+    elements.manualTemplateFilters.appendChild(button);
+  });
+}
+
 function renderManualTemplateGallery() {
   if (!elements.manualTemplateGallery) {
     return;
   }
 
   elements.manualTemplateGallery.innerHTML = "";
-  MANUAL_TEMPLATES.forEach((template) => {
+  const templates = getFilteredManualTemplates();
+  if (templates.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-tip";
+    empty.textContent = "没有匹配到模板。换个关键词，或者点“全部”看看。";
+    elements.manualTemplateGallery.appendChild(empty);
+    return;
+  }
+
+  templates.forEach((template) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "template-card";
@@ -1008,6 +1095,240 @@ function renderImportGroups(groups) {
   });
 }
 
+function buildImportCoverageItems(analysis) {
+  if (!analysis || !Array.isArray(analysis.candidates)) {
+    return [];
+  }
+
+  const candidates = analysis.candidates || [];
+  const groups = analysis.groups || [];
+  const loginCount = Array.isArray(analysis.loginCandidates) ? analysis.loginCandidates.length : 0;
+  const nonceCount = Array.isArray(analysis.nonceCandidates) ? analysis.nonceCandidates.length : 0;
+  const hasResponseBody = candidates.some((candidate) => candidate.hasResponseBody);
+  const claimListCount = groups.filter((group) => group.taskType === "claimList").length;
+  const confidence = getImportConfidence(analysis);
+
+  const items = [];
+  items.push(
+    hasResponseBody
+      ? {
+          tone: "good",
+          title: "抓包上下文",
+          body: "这份抓包里带有响应内容，后面自动识别 token、列表和字段路径会更稳。",
+        }
+      : {
+          tone: "warn",
+          title: "抓包上下文",
+          body: "这份抓包几乎没有响应内容，能生成骨架，但很多字段可能还要你手动补。",
+        }
+  );
+
+  if (analysis.authMode === "account_token") {
+    items.push({
+      tone: "good",
+      title: "登录链路",
+      body: "当前识别为直接用 Token。只要准备好 token 文件，就能先跑通第一版。",
+    });
+  } else if (analysis.authMode === "request") {
+    items.push(
+      loginCount > 0
+        ? {
+            tone: "good",
+            title: "登录链路",
+            body: "已经识别到账号登录请求，后面优先检查 token 提取路径即可。",
+          }
+        : {
+            tone: "bad",
+            title: "登录链路",
+            body: "没有识别到明确登录请求。生成后大概率还要你手动补登录接口。",
+          }
+    );
+  } else if (analysis.authMode === "evm_sign") {
+    items.push(
+      loginCount > 0 && nonceCount > 0
+        ? {
+            tone: "good",
+            title: "签名链路",
+            body: "已经识别到 nonce 和 login 两段，钱包签名登录的基础链路是完整的。",
+          }
+        : {
+            tone: "bad",
+            title: "签名链路",
+            body: "签名登录缺少 nonce 或 login 请求，建议重新抓完整的钱包签名流程。",
+          }
+    );
+  } else {
+    items.push({
+      tone: "warn",
+      title: "登录链路",
+      body: "当前没有明确登录步骤，适合做无需登录或已经拿到凭证的简单任务。",
+    });
+  }
+
+  items.push(
+    groups.length >= 3
+      ? {
+          tone: "good",
+          title: "任务分组",
+          body: `系统已拼出 ${groups.length} 组任务，基础执行顺序已经比较完整。`,
+        }
+      : groups.length >= 1
+      ? {
+          tone: "warn",
+          title: "任务分组",
+          body: `目前只拼出 ${groups.length} 组任务，建议先确认是不是少抓了某些关键按钮。`,
+        }
+      : {
+          tone: "bad",
+          title: "任务分组",
+          body: "还没拼出有效任务组，这份抓包不适合直接生成。",
+        }
+  );
+
+  items.push(
+    claimListCount > 0
+      ? {
+          tone: "good",
+          title: "列表领取",
+          body: `已识别 ${claimListCount} 组“列表 + 领取”任务，适合任务站、奖励站这类项目。`,
+        }
+      : {
+          tone: "info",
+          title: "列表领取",
+          body: "这次没有自动合并出列表领取任务；如果目标站不是任务站，这属于正常现象。",
+        }
+  );
+
+  items.push(
+    confidence.level === "high"
+      ? {
+          tone: "good",
+          title: "直接开跑建议",
+          body: "这份抓包适合直接一键生成。先跑第一版，再根据报错微调。",
+        }
+      : confidence.level === "medium"
+      ? {
+          tone: "warn",
+          title: "直接开跑建议",
+          body: "可以直接生成，但生成后先看 `project.config.json`、`.env` 和账号文件。",
+        }
+      : {
+          tone: "bad",
+          title: "直接开跑建议",
+          body: "建议先重新抓一次更完整的 HAR，再回来生成，会比硬改省时间。",
+        }
+  );
+
+  return items;
+}
+
+function renderImportCoverage(analysis) {
+  if (!elements.importCoverageList) {
+    return;
+  }
+
+  elements.importCoverageList.innerHTML = "";
+  const items = buildImportCoverageItems(analysis);
+  if (items.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-tip";
+    empty.textContent = "分析后，这里会告诉你这份抓包哪些地方能自动处理，哪些地方可能还要手改。";
+    elements.importCoverageList.appendChild(empty);
+    return;
+  }
+
+  items.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = `coverage-card is-${item.tone}`;
+    card.innerHTML = `
+      <div class="coverage-title">${item.title}</div>
+      <div class="coverage-body">${item.body}</div>
+    `;
+    elements.importCoverageList.appendChild(card);
+  });
+}
+
+function formatValueForCode(value, indentSize = 4) {
+  return JSON.stringify(value, null, 2).split("\n").join(`\n${" ".repeat(indentSize)}`);
+}
+
+function buildCandidateCurlSnippet(candidate) {
+  const lines = [
+    `curl --request ${String(candidate.method || "GET").toUpperCase()} ${JSON.stringify(candidate.url || "")}`,
+  ];
+
+  Object.entries(candidate.headers || {}).forEach(([key, value]) => {
+    lines.push(`  --header ${JSON.stringify(`${key}: ${value}`)}`);
+  });
+
+  if (candidate.body !== undefined) {
+    const bodyText =
+      typeof candidate.body === "string"
+        ? candidate.body
+        : JSON.stringify(candidate.body);
+    lines.push(`  --data-raw ${JSON.stringify(bodyText)}`);
+  }
+
+  return lines.join(" \\\n");
+}
+
+function buildCandidateAxiosSnippet(candidate) {
+  const lines = [
+    'const axios = require("axios");',
+    "",
+    "async function main() {",
+    "  const response = await axios({",
+    `    method: ${JSON.stringify(String(candidate.method || "GET").toLowerCase())},`,
+    `    url: ${JSON.stringify(candidate.url || "")},`,
+    `    headers: ${formatValueForCode(candidate.headers || {}, 4)},`,
+  ];
+
+  if (candidate.body !== undefined) {
+    lines.push(`    data: ${formatValueForCode(candidate.body, 4)},`);
+  }
+
+  lines.push("    timeout: 30000,");
+  lines.push("  });");
+  lines.push("");
+  lines.push("  console.log(response.data);");
+  lines.push("}");
+  lines.push("");
+  lines.push("main().catch((error) => {");
+  lines.push("  console.error(error.response?.data || error.message || error);");
+  lines.push("});");
+  return lines.join("\n");
+}
+
+async function copyTextToClipboard(text) {
+  if (typeof desktopApi !== "undefined" && desktopApi && typeof desktopApi.copyText === "function") {
+    await desktopApi.copyText(text);
+    return;
+  }
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  throw new Error("clipboard unavailable");
+}
+
+async function handleCopyAction(button, text) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  try {
+    await copyTextToClipboard(text);
+    button.textContent = "已复制";
+  } catch {
+    button.textContent = "复制失败";
+  }
+
+  window.setTimeout(() => {
+    button.textContent = originalText;
+    button.disabled = false;
+  }, 1200);
+}
+
 function buildImportSuggestions(analysis) {
   const suggestions = [];
 
@@ -1092,18 +1413,38 @@ function renderImportCandidatePreview(analysis) {
       </div>
       <strong>${candidate.name || "unnamed_request"}</strong>
       <span>${candidate.summary || candidate.url || ""}</span>
+      <div class="candidate-url">${candidate.url || ""}</div>
+      <div class="candidate-meta">
+        <span>${candidate.hasResponseBody ? "带响应样本" : "无响应样本"}</span>
+        <span>${candidate.body === undefined ? "无请求体" : "带请求体"}</span>
+      </div>
+      <div class="candidate-actions">
+        <button type="button" class="candidate-action-btn" data-copy-kind="curl">复制 cURL</button>
+        <button type="button" class="candidate-action-btn" data-copy-kind="axios">复制 Node Axios</button>
+      </div>
     `;
+    const curlButton = item.querySelector("[data-copy-kind='curl']");
+    const axiosButton = item.querySelector("[data-copy-kind='axios']");
+    curlButton.addEventListener("click", async () => {
+      await handleCopyAction(curlButton, buildCandidateCurlSnippet(candidate));
+    });
+    axiosButton.addEventListener("click", async () => {
+      await handleCopyAction(axiosButton, buildCandidateAxiosSnippet(candidate));
+    });
     elements.importCandidateList.appendChild(item);
   });
 }
 
 function renderImportInsights(analysis) {
   renderImportConfidence(analysis);
+  renderImportCoverage(analysis);
   renderImportSuggestions(analysis);
   renderImportCandidatePreview(analysis);
 }
 
 function clearImportInsights() {
+  renderImportConfidence({});
+  renderImportCoverage({});
   renderImportSuggestions({});
   renderImportCandidatePreview({});
 }
@@ -1483,6 +1824,7 @@ async function bootstrap() {
   elements.manualAccountFields.value = (defaults.accountFields || []).join(",");
   syncManualAuthModes(defaults.authMode);
   renderManualTemplates();
+  renderManualTemplateFilters();
   renderManualTemplateGallery();
   await applyManualTemplate();
 
@@ -1552,6 +1894,13 @@ elements.manualTemplate.addEventListener("change", async () => {
   await applyManualTemplate({ preserveProjectName: true });
   renderManualTemplateGallery();
 });
+
+if (elements.manualTemplateSearch) {
+  elements.manualTemplateSearch.addEventListener("input", () => {
+    state.manualTemplateSearch = elements.manualTemplateSearch.value || "";
+    renderManualTemplateGallery();
+  });
+}
 
 elements.manualApplyTemplate.addEventListener("click", async () => {
   await applyManualTemplate({ preserveProjectName: true });

@@ -1,5 +1,5 @@
 const path = require("path");
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
 const desktopService = require("../lib/desktop-service");
 
 function createWindow() {
@@ -97,6 +97,11 @@ function registerIpcHandlers() {
     }
     const error = await shell.openPath(String(targetPath));
     return error === "";
+  });
+
+  ipcMain.handle("system:copy-text", async (_, text) => {
+    clipboard.writeText(String(text || ""));
+    return true;
   });
 }
 

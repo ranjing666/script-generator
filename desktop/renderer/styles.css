@@ -374,6 +374,39 @@ main {
   min-width: 260px;
 }
 
+.template-toolbar {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.template-toolbar input {
+  min-height: 44px;
+}
+
+.chip-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(112, 160, 219, 0.24);
+  background: rgba(12, 22, 38, 0.58);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.filter-chip.active {
+  border-color: rgba(57, 214, 176, 0.54);
+  color: #d6fff6;
+  background: rgba(57, 214, 176, 0.14);
+  box-shadow: 0 8px 18px rgba(7, 23, 35, 0.24);
+}
+
 .template-gallery {
   margin-top: 12px;
   display: grid;
@@ -720,11 +753,57 @@ button:disabled {
   line-height: 1.45;
 }
 
+.coverage-list,
 .advice-list,
 .candidate-list,
 .recent-list {
   display: grid;
   gap: 8px;
+}
+
+.coverage-list {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.coverage-card {
+  border: 1px solid rgba(112, 160, 219, 0.22);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(13, 25, 44, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coverage-card.is-good {
+  border-color: rgba(57, 214, 176, 0.28);
+  background: linear-gradient(160deg, rgba(10, 36, 42, 0.72), rgba(10, 25, 35, 0.62));
+}
+
+.coverage-card.is-warn {
+  border-color: rgba(255, 200, 107, 0.28);
+  background: linear-gradient(160deg, rgba(42, 28, 9, 0.72), rgba(29, 22, 12, 0.62));
+}
+
+.coverage-card.is-bad {
+  border-color: rgba(255, 114, 133, 0.28);
+  background: linear-gradient(160deg, rgba(45, 15, 23, 0.72), rgba(29, 16, 20, 0.62));
+}
+
+.coverage-card.is-info {
+  border-color: rgba(112, 160, 219, 0.24);
+}
+
+.coverage-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.coverage-body {
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 13px;
 }
 
 .advice-item {
@@ -748,11 +827,6 @@ button:disabled {
 
 .candidate-item strong {
   font-size: 14px;
-}
-
-.candidate-item span:last-child {
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .candidate-head {
@@ -780,6 +854,44 @@ button:disabled {
 .candidate-kind {
   background: rgba(255, 200, 107, 0.14);
   color: #ffe2a5;
+}
+
+.candidate-url,
+.candidate-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.candidate-url {
+  word-break: break-all;
+  line-height: 1.45;
+}
+
+.candidate-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.candidate-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.candidate-action-btn {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(112, 160, 219, 0.24);
+  background: rgba(12, 22, 38, 0.58);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.candidate-action-btn:disabled {
+  opacity: 0.72;
 }
 
 .recent-list {
