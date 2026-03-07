@@ -16,6 +16,9 @@ const MANUAL_TEMPLATES = [
     id: "easy_api_accounts",
     label: "账号密码签到（最稳）",
     summary: "邮箱密码登录 + 签到 + 心跳，适合大多数新手首跑。",
+    fitFor: "大部分网页测试网、积分站、签到站",
+    difficulty: "low",
+    marketTags: ["新手最稳", "接口站", "先跑通"],
     projectName: "easy-api-checkin",
     accountSource: "accounts",
     accountFields: ["email", "password"],
@@ -30,6 +33,9 @@ const MANUAL_TEMPLATES = [
     id: "easy_token_keepalive",
     label: "Token 保活（最省事）",
     summary: "已有 token 直接跑任务，最少配置。",
+    fitFor: "扩展插件保活、挂机积分、已拿到 token 的项目",
+    difficulty: "low",
+    marketTags: ["最快启动", "已有 token", "省配置"],
     projectName: "easy-token-keepalive",
     accountSource: "tokens",
     accountFields: [],
@@ -44,6 +50,9 @@ const MANUAL_TEMPLATES = [
     id: "easy_evm_daily",
     label: "EVM 钱包日常任务",
     summary: "私钥模式，适合测试网签到/领水/链上交互。",
+    fitFor: "钱包签名登录、链上交互、领水、合约调用",
+    difficulty: "medium",
+    marketTags: ["钱包项目", "链上任务", "签名登录"],
     projectName: "easy-evm-daily",
     accountSource: "privateKeys",
     accountFields: [],
@@ -85,6 +94,24 @@ const REQUEST_KIND_LABELS = {
   claim: "领取请求",
   list: "列表请求",
   request: "普通请求",
+};
+
+const TEMPLATE_DIFFICULTY_LABELS = {
+  low: "简单",
+  medium: "中等",
+  high: "偏难",
+};
+
+const PRESET_LABELS = {
+  api_checkin: "签到",
+  api_heartbeat: "心跳",
+  api_faucet: "领水",
+  api_claim_list: "列表领取",
+  contract_call: "合约调用",
+  native_transfer: "原生币转账",
+  erc20_transfer: "ERC20 转账",
+  deploy_contract: "部署合约",
+  wait_step: "等待",
 };
 
 const elements = {
@@ -155,6 +182,11 @@ const elements = {
   importQuickGenerate: document.getElementById("importQuickGenerate"),
   importOpenDir: document.getElementById("importOpenDir"),
   importSummary: document.getElementById("importSummary"),
+  importConfidenceBadge: document.getElementById("importConfidenceBadge"),
+  importConfidenceScore: document.getElementById("importConfidenceScore"),
+  importConfidenceMeter: document.getElementById("importConfidenceMeter"),
+  importConfidenceText: document.getElementById("importConfidenceText"),
+  importConfidenceNotes: document.getElementById("importConfidenceNotes"),
   importSuggestionList: document.getElementById("importSuggestionList"),
   importCandidateList: document.getElementById("importCandidateList"),
   importGroupList: document.getElementById("importGroupList"),
@@ -263,6 +295,10 @@ function formatTimestamp(value) {
 
 function getPathTail(inputPath) {
   return String(inputPath || "").split(/[\\/]/).pop() || String(inputPath || "");
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function loadRecentImports() {
@@ -473,10 +509,22 @@ function renderManualTemplateGallery() {
     if (elements.manualTemplate.value === template.id) {
       button.classList.add("active");
     }
+    const presetLabels = (template.presetIds || [])
+      .map((presetId) => PRESET_LABELS[presetId] || presetId)
+      .join(" / ");
+    const tagHtml = (template.marketTags || [])
+      .map((tag) => `<span class="template-mini-tag">${tag}</span>`)
+      .join("");
     button.innerHTML = `
-      <span class="template-tag">${toAccountSourceLabel(template.accountSource)}</span>
+      <div class="template-card-head">
+        <span class="template-tag">${toAccountSourceLabel(template.accountSource)}</span>
+        <span class="template-difficulty">${TEMPLATE_DIFFICULTY_LABELS[template.difficulty] || "简单"}</span>
+      </div>
       <strong>${template.label}</strong>
       <span>${template.summary}</span>
+      <div class="template-fit">适合: ${template.fitFor || "常见测试网任务"}</div>
+      <div class="template-flow">内置: ${presetLabels || "基础任务"}</div>
+      <div class="template-mini-tags">${tagHtml}</div>
     `;
     button.addEventListener("click", async () => {
       elements.manualTemplate.value = template.id;
@@ -485,6 +533,144 @@ function renderManualTemplateGallery() {
       setStatus(elements.manualStatus, "模板已切换，点“一键生成（小白）”即可。");
     });
     elements.manualTemplateGallery.appendChild(button);
+  });
+}
+
+function getImportConfidence(analysis) {
+  if (!analysis || !Array.isArray(analysis.candidates)) {
+    return {
+      score: 0,
+      level: "empty",
+      label: "等待分析",
+      text: "分析后，这里会告诉你这份抓包是否适合直接生成。",
+      notes: [],
+    };
+  }
+
+  let score = 38;
+  const notes = [];
+  const candidateCount = analysis.candidates.length;
+  const groupCount = Array.isArray(analysis.groups) ? analysis.groups.length : 0;
+  const warningCount = Array.isArray(analysis.warnings) ? analysis.warnings.length : 0;
+  const loginCount = Array.isArray(analysis.loginCandidates) ? analysis.loginCandidates.length : 0;
+  const nonceCount = Array.isArray(analysis.nonceCandidates) ? analysis.nonceCandidates.length : 0;
+
+  if (analysis.sourceType === "har") {
+    score += 22;
+    notes.push("HAR 通常信息最全，识别成功率最高。");
+  } else if (analysis.sourceType === "postman") {
+    score += 16;
+    notes.push("Postman 导出结构清晰，适合整理过的接口。");
+  } else if (analysis.sourceType === "curl") {
+    score += 10;
+    notes.push("cURL 适合快速试跑，但上下文通常较少。");
+  }
+
+  if (candidateCount >= 8) {
+    score += 16;
+    notes.push(`已识别 ${candidateCount} 个请求，流程信息较完整。`);
+  } else if (candidateCount >= 4) {
+    score += 10;
+    notes.push(`已识别 ${candidateCount} 个请求，基础流程基本够用。`);
+  } else if (candidateCount >= 1) {
+    score += 4;
+    notes.push(`只识别到 ${candidateCount} 个请求，可能需要补抓完整流程。`);
+  }
+
+  if (groupCount >= 3) {
+    score += 10;
+  } else if (groupCount >= 1) {
+    score += 6;
+  }
+
+  if (analysis.accountSource === analysis.inferredAccountSource) {
+    score += 6;
+  }
+
+  if (analysis.authMode === "request") {
+    if (loginCount > 0) {
+      score += 10;
+      notes.push("已识别到登录请求。");
+    } else {
+      score -= 18;
+      notes.push("没找到明确登录请求，后续可能需要手改。");
+    }
+  } else if (analysis.authMode === "evm_sign") {
+    if (loginCount > 0 && nonceCount > 0) {
+      score += 14;
+      notes.push("已识别签名前置请求和登录请求。");
+    } else {
+      score -= 22;
+      notes.push("签名登录链路不完整，建议重新抓包。");
+    }
+  } else if (analysis.authMode === "account_token") {
+    score += 8;
+    notes.push("可直接走 Token 模式，先跑通会更快。");
+  }
+
+  score -= warningCount * 12;
+  if (warningCount > 0) {
+    notes.push(`当前有 ${warningCount} 条警告，需要优先处理。`);
+  }
+
+  score = clamp(score, 0, 99);
+
+  if (score >= 80) {
+    return {
+      score,
+      level: "high",
+      label: "高",
+      text: "这份抓包适合直接生成，通常只需要少量手改。",
+      notes: notes.slice(0, 4),
+    };
+  }
+
+  if (score >= 55) {
+    return {
+      score,
+      level: "medium",
+      label: "中",
+      text: "这份抓包可以生成，但建议先检查登录链路和关键字段。",
+      notes: notes.slice(0, 4),
+    };
+  }
+
+  return {
+    score,
+    level: "low",
+    label: "低",
+    text: "这份抓包信息不够完整，建议重新抓一次更完整流程。",
+    notes: notes.slice(0, 4),
+  };
+}
+
+function renderImportConfidence(analysis) {
+  if (!elements.importConfidenceBadge) {
+    return;
+  }
+
+  const confidence = getImportConfidence(analysis);
+  elements.importConfidenceBadge.className = `confidence-badge is-${confidence.level}`;
+  elements.importConfidenceBadge.textContent = confidence.level === "empty"
+    ? confidence.label
+    : `可信度 ${confidence.label}`;
+  elements.importConfidenceScore.textContent = confidence.level === "empty"
+    ? "--"
+    : `${confidence.score}分`;
+  elements.importConfidenceMeter.style.width = `${confidence.level === "empty" ? 0 : confidence.score}%`;
+  elements.importConfidenceMeter.className = `is-${confidence.level}`;
+  elements.importConfidenceText.textContent = confidence.text;
+  elements.importConfidenceNotes.innerHTML = "";
+
+  if (!Array.isArray(confidence.notes) || confidence.notes.length === 0) {
+    return;
+  }
+
+  confidence.notes.forEach((note) => {
+    const item = document.createElement("div");
+    item.className = "confidence-note";
+    item.textContent = note;
+    elements.importConfidenceNotes.appendChild(item);
   });
 }
 
@@ -654,6 +840,7 @@ function renderImportCandidatePreview(analysis) {
 }
 
 function renderImportInsights(analysis) {
+  renderImportConfidence(analysis);
   renderImportSuggestions(analysis);
   renderImportCandidatePreview(analysis);
 }
@@ -665,6 +852,7 @@ function clearImportInsights() {
 
 function renderImportSummary(analysis, sourceNote = "") {
   const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
+  const confidence = getImportConfidence(analysis);
   const lines = [
     sourceNote ? `抓包类型: ${sourceNote}` : null,
     `候选请求: ${(analysis.candidates || []).length}`,
@@ -673,6 +861,7 @@ function renderImportSummary(analysis, sourceNote = "") {
     `推断登录方式: ${toAuthModeLabel(analysis.inferredAuthMode)}`,
     `当前登录方式: ${toAuthModeLabel(analysis.authMode)}`,
     `任务组数量: ${analysis.groups.length}`,
+    `导入可信度: ${confidence.label}${confidence.level === "empty" ? "" : `（${confidence.score}分）`}`,
   ].filter(Boolean);
   if (warnings.length > 0) {
     lines.push("");
@@ -813,9 +1002,10 @@ async function analyzeWizard() {
     const warningText = analysis.warnings && analysis.warnings.length > 0
       ? `\n警告:\n${analysis.warnings.map((warning, index) => `${index + 1}. ${warning}`).join("\n")}`
       : "";
+    const confidence = getImportConfidence(analysis);
     setStatus(
       elements.wizardStatus,
-      `分析完成\n识别类型: ${toSourceTypeLabel(detected.sourceType)}\n账号方式: ${toAccountSourceLabel(analysis.accountSource)}\n登录方式: ${toAuthModeLabel(analysis.authMode)}\n任务组: ${analysis.groups.length}${warningText}`
+      `分析完成\n识别类型: ${toSourceTypeLabel(detected.sourceType)}\n账号方式: ${toAccountSourceLabel(analysis.accountSource)}\n登录方式: ${toAuthModeLabel(analysis.authMode)}\n任务组: ${analysis.groups.length}\n导入可信度: ${confidence.label}（${confidence.score}分）${warningText}`
     );
     return { detected, analysis };
   } catch (error) {
