@@ -55,6 +55,26 @@ const MANUAL_TEMPLATES = [
   },
 ];
 
+const ACCOUNT_SOURCE_LABELS = {
+  accounts: "账号密码",
+  tokens: "现成登录凭证(Token)",
+  privateKeys: "钱包私钥",
+};
+
+const AUTH_MODE_LABELS = {
+  request: "账号密码登录",
+  account_token: "直接使用 Token",
+  evm_sign: "钱包签名登录",
+  none: "无需登录",
+};
+
+const SOURCE_TYPE_LABELS = {
+  auto: "自动识别",
+  har: "浏览器抓包(HAR)",
+  postman: "Postman 导出",
+  curl: "cURL 文本",
+};
+
 const elements = {
   tabWizard: document.getElementById("tabWizard"),
   tabManual: document.getElementById("tabManual"),
@@ -77,6 +97,9 @@ const elements = {
   onboardingClose: document.getElementById("onboardingClose"),
   captureGuideModal: document.getElementById("captureGuideModal"),
   captureGuideClose: document.getElementById("captureGuideClose"),
+  glossaryOpen: document.getElementById("glossaryOpen"),
+  glossaryModal: document.getElementById("glossaryModal"),
+  glossaryClose: document.getElementById("glossaryClose"),
 
   manualTemplate: document.getElementById("manualTemplate"),
   manualApplyTemplate: document.getElementById("manualApplyTemplate"),
@@ -166,6 +189,32 @@ function closeCaptureGuide() {
   elements.captureGuideModal.classList.add("hidden");
 }
 
+function openGlossary() {
+  if (!elements.glossaryModal) {
+    return;
+  }
+  elements.glossaryModal.classList.remove("hidden");
+}
+
+function closeGlossary() {
+  if (!elements.glossaryModal) {
+    return;
+  }
+  elements.glossaryModal.classList.add("hidden");
+}
+
+function toAccountSourceLabel(value) {
+  return ACCOUNT_SOURCE_LABELS[value] || String(value || "");
+}
+
+function toAuthModeLabel(value) {
+  return AUTH_MODE_LABELS[value] || String(value || "");
+}
+
+function toSourceTypeLabel(value) {
+  return SOURCE_TYPE_LABELS[value] || String(value || "");
+}
+
 function buildAuthModes(accountSource, preferred = "none") {
   const modes = [];
   if (accountSource === "tokens") {
@@ -217,9 +266,10 @@ function buildRunChecklist(outputDir) {
     "",
     "下一步（照着做就行）:",
     `1. 进入目录: ${outputDir}`,
-    "2. 运行: npm install",
-    "3. 复制: .env.example -> .env",
-    "4. 运行: npm start",
+    "2. 安装依赖: npm install",
+    "3. 复制配置模板(Windows): copy .env.example .env",
+    "4. 打开 .env 按需填写（不会填就先留空，先跑起来）",
+    "5. 启动脚本: npm start",
   ].join("\n");
 }
 
@@ -349,24 +399,25 @@ function renderImportGroups(groups) {
 }
 
 function renderImportSummary(analysis, sourceNote = "") {
+  const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
   const lines = [
     sourceNote ? `抓包类型: ${sourceNote}` : null,
-    `候选请求: ${analysis.candidates.length}`,
-    `推断账号来源: ${analysis.inferredAccountSource}`,
-    `当前账号来源: ${analysis.accountSource}`,
-    `推断登录模式: ${analysis.inferredAuthMode}`,
-    `当前登录模式: ${analysis.authMode}`,
+    `候选请求: ${(analysis.candidates || []).length}`,
+    `推断账号方式: ${toAccountSourceLabel(analysis.inferredAccountSource)}`,
+    `当前账号方式: ${toAccountSourceLabel(analysis.accountSource)}`,
+    `推断登录方式: ${toAuthModeLabel(analysis.inferredAuthMode)}`,
+    `当前登录方式: ${toAuthModeLabel(analysis.authMode)}`,
     `任务组数量: ${analysis.groups.length}`,
   ].filter(Boolean);
-  if (Array.isArray(analysis.warnings) && analysis.warnings.length > 0) {
+  if (warnings.length > 0) {
     lines.push("");
     lines.push("警告:");
-    analysis.warnings.forEach((warning, index) => {
+    warnings.forEach((warning, index) => {
       lines.push(`${index + 1}. ${warning}`);
     });
   }
 
-  setStatus(elements.importSummary, lines.join("\n"), analysis.warnings.length > 0 ? "warn" : "");
+  setStatus(elements.importSummary, lines.join("\n"), warnings.length > 0 ? "warn" : "");
 }
 
 async function resolveImportSourceType(inputPath) {
@@ -425,7 +476,7 @@ async function analyzeImport() {
       (item) => (item.name ? `${item.id || "auto"} | ${item.name}` : String(item.id || ""))
     );
     renderImportGroups(analysis.groups);
-    renderImportSummary(analysis, `${analysis.sourceType}（${detected.reason}）`);
+    renderImportSummary(analysis, `${toSourceTypeLabel(analysis.sourceType)}（${detected.reason}）`);
   } catch (error) {
     state.importAnalysis = null;
     elements.importGroupList.innerHTML = "";
@@ -445,7 +496,7 @@ async function detectImportTypeOnly() {
     const detected = await resolveImportSourceType(inputPath);
     setStatus(
       elements.importSummary,
-      `识别完成\n类型: ${detected.sourceType}\n原因: ${detected.reason}`
+      `识别完成\n类型: ${toSourceTypeLabel(detected.sourceType)}\n原因: ${detected.reason}`
     );
   } catch (error) {
     setStatus(elements.importSummary, `识别失败: ${error.message || String(error)}`, "error");
@@ -475,7 +526,7 @@ async function analyzeWizard() {
       : "";
     setStatus(
       elements.wizardStatus,
-      `分析完成\n识别类型: ${detected.sourceType}\n账号来源: ${analysis.accountSource}\n登录模式: ${analysis.authMode}\n任务组: ${analysis.groups.length}${warningText}`
+      `分析完成\n识别类型: ${toSourceTypeLabel(detected.sourceType)}\n账号方式: ${toAccountSourceLabel(analysis.accountSource)}\n登录方式: ${toAuthModeLabel(analysis.authMode)}\n任务组: ${analysis.groups.length}${warningText}`
     );
     return { detected, analysis };
   } catch (error) {
@@ -640,7 +691,7 @@ async function generateImportQuick() {
     elements.importAccountFields.value = (analysis.accountFields || []).join(",");
     syncImportAuthModes(analysis.authMode);
     renderImportGroups(analysis.groups);
-    renderImportSummary(analysis, `${analysis.sourceType}（${detected.reason}）`);
+    renderImportSummary(analysis, `${toSourceTypeLabel(analysis.sourceType)}（${detected.reason}）`);
 
     const result = await desktopApi.generateImportProject({
       projectName: elements.importProjectName.value.trim(),
@@ -715,6 +766,14 @@ if (elements.captureGuideClose) {
   elements.captureGuideClose.addEventListener("click", closeCaptureGuide);
 }
 
+if (elements.glossaryOpen) {
+  elements.glossaryOpen.addEventListener("click", openGlossary);
+}
+
+if (elements.glossaryClose) {
+  elements.glossaryClose.addEventListener("click", closeGlossary);
+}
+
 if (elements.captureGuideModal) {
   elements.captureGuideModal.addEventListener("click", (event) => {
     if (event.target === elements.captureGuideModal) {
@@ -723,9 +782,18 @@ if (elements.captureGuideModal) {
   });
 }
 
+if (elements.glossaryModal) {
+  elements.glossaryModal.addEventListener("click", (event) => {
+    if (event.target === elements.glossaryModal) {
+      closeGlossary();
+    }
+  });
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeCaptureGuide();
+    closeGlossary();
   }
 });
 

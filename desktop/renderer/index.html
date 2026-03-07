@@ -29,7 +29,10 @@
       <section id="panelWizard" class="panel">
         <h2>新手向导（1-2-3）</h2>
         <div class="intro-card">
-          <div class="intro-title">这个软件是干什么的？</div>
+          <div class="intro-title-row">
+            <div class="intro-title">这个软件是干什么的？</div>
+            <button id="glossaryOpen" class="help-btn" type="button">看不懂词？术语翻译</button>
+          </div>
           <div class="intro-grid">
             <div>
               <strong>输入</strong>
@@ -289,6 +292,25 @@
         </p>
         <div class="onboarding-actions">
           <button id="captureGuideClose" class="primary" type="button">我会了，继续</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="glossaryModal" class="onboarding hidden">
+      <div class="onboarding-card">
+        <h2>术语翻译（人话版）</h2>
+        <ul class="glossary-list">
+          <li><strong>抓包文件(HAR)</strong>：你在网站上操作时，浏览器发出的接口记录。</li>
+          <li><strong>Token</strong>：网站给你的“登录凭证”，有它就能继续请求接口。</li>
+          <li><strong>私钥</strong>：钱包控制权，必须保密，泄露就可能丢资产。</li>
+          <li><strong>RPC_URL</strong>：连接区块链节点的网址，链上任务必须有。</li>
+          <li><strong>Nonce</strong>：一次性随机串，签名登录前常会先拿它。</li>
+          <li><strong>Claim</strong>：领取奖励。</li>
+          <li><strong>Faucet</strong>：测试网领币。</li>
+          <li><strong>429</strong>：请求太频繁，被网站限流了。</li>
+        </ul>
+        <div class="onboarding-actions">
+          <button id="glossaryClose" class="primary" type="button">我明白了</button>
         </div>
       </div>
     </div>

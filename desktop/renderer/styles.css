@@ -119,6 +119,23 @@ main {
   margin-bottom: 8px;
 }
 
+.intro-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.intro-title-row .intro-title {
+  margin-bottom: 0;
+}
+
+.intro-title-row .help-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .intro-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -397,6 +414,17 @@ body.novice-mode .advanced-only {
 
 .onboarding-card li {
   margin: 6px 0;
+}
+
+.glossary-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.glossary-list li {
+  margin: 8px 0;
+  line-height: 1.45;
 }
 
 .onboarding-actions {
