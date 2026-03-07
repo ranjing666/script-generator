@@ -100,6 +100,9 @@
 
         <h3>向导状态</h3>
         <pre id="wizardStatus" class="status">先执行第 1 步，再点“开始自动分析”。</pre>
+
+        <h3>最近导入</h3>
+        <div id="recentImportList" class="recent-list"></div>
       </section>
 
       <section id="panelManual" class="panel hidden">
@@ -114,6 +117,7 @@
               一键生成（小白）
             </button>
           </div>
+          <div id="manualTemplateGallery" class="template-gallery"></div>
         </div>
 
         <div class="grid">
@@ -264,6 +268,17 @@
 
         <h3>分析结果</h3>
         <pre id="importSummary" class="status"></pre>
+
+        <div class="analysis-deck">
+          <section class="analysis-card">
+            <div class="hero-title">系统建议</div>
+            <div id="importSuggestionList" class="advice-list"></div>
+          </section>
+          <section class="analysis-card">
+            <div class="hero-title">识别到的请求预览</div>
+            <div id="importCandidateList" class="candidate-list"></div>
+          </section>
+        </div>
 
         <h3 class="advanced-only">任务组（高级模式可自选）</h3>
         <div id="importGroupList" class="checklist advanced-only"></div>

@@ -8,6 +8,7 @@ const state = {
   importAnalysis: null,
   wizardAnalysis: null,
   noviceMode: true,
+  recentImports: [],
 };
 
 const MANUAL_TEMPLATES = [
@@ -75,6 +76,17 @@ const SOURCE_TYPE_LABELS = {
   curl: "cURL 文本",
 };
 
+const REQUEST_KIND_LABELS = {
+  auth_login: "登录请求",
+  auth_nonce: "签名前置请求",
+  api_checkin: "签到请求",
+  api_heartbeat: "心跳请求",
+  api_faucet: "领水请求",
+  claim: "领取请求",
+  list: "列表请求",
+  request: "普通请求",
+};
+
 const elements = {
   tabWizard: document.getElementById("tabWizard"),
   tabManual: document.getElementById("tabManual"),
@@ -93,6 +105,7 @@ const elements = {
   wizardGenerate: document.getElementById("wizardGenerate"),
   wizardOpenDir: document.getElementById("wizardOpenDir"),
   wizardStatus: document.getElementById("wizardStatus"),
+  recentImportList: document.getElementById("recentImportList"),
   onboardingModal: document.getElementById("onboardingModal"),
   onboardingClose: document.getElementById("onboardingClose"),
   captureGuideModal: document.getElementById("captureGuideModal"),
@@ -115,6 +128,7 @@ const elements = {
   manualRepeat: document.getElementById("manualRepeat"),
   manualInterval: document.getElementById("manualInterval"),
   manualPresetList: document.getElementById("manualPresetList"),
+  manualTemplateGallery: document.getElementById("manualTemplateGallery"),
   manualGenerate: document.getElementById("manualGenerate"),
   manualOpenDir: document.getElementById("manualOpenDir"),
   manualStatus: document.getElementById("manualStatus"),
@@ -141,10 +155,13 @@ const elements = {
   importQuickGenerate: document.getElementById("importQuickGenerate"),
   importOpenDir: document.getElementById("importOpenDir"),
   importSummary: document.getElementById("importSummary"),
+  importSuggestionList: document.getElementById("importSuggestionList"),
+  importCandidateList: document.getElementById("importCandidateList"),
   importGroupList: document.getElementById("importGroupList"),
 };
 
 const ONBOARDING_KEY = "script_generator_onboarding_seen_v2";
+const RECENT_IMPORTS_KEY = "script_generator_recent_imports_v1";
 
 function setStatus(element, text, kind = "") {
   element.classList.remove("warn", "error");
@@ -213,6 +230,126 @@ function toAuthModeLabel(value) {
 
 function toSourceTypeLabel(value) {
   return SOURCE_TYPE_LABELS[value] || String(value || "");
+}
+
+function toRequestKindLabel(value) {
+  return REQUEST_KIND_LABELS[value] || String(value || "");
+}
+
+function deriveProjectNameFromPath(inputPath) {
+  const fileName = String(inputPath || "")
+    .split(/[\\/]/)
+    .pop()
+    || "my-project";
+  return fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "my-project";
+}
+
+function formatTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "刚刚";
+  }
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getPathTail(inputPath) {
+  return String(inputPath || "").split(/[\\/]/).pop() || String(inputPath || "");
+}
+
+function loadRecentImports() {
+  try {
+    const raw = window.localStorage.getItem(RECENT_IMPORTS_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    state.recentImports = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    state.recentImports = [];
+  }
+}
+
+function persistRecentImports() {
+  window.localStorage.setItem(
+    RECENT_IMPORTS_KEY,
+    JSON.stringify(state.recentImports.slice(0, 6))
+  );
+}
+
+function rememberRecentImport(entry) {
+  const inputPath = String(entry && entry.inputPath ? entry.inputPath : "").trim();
+  if (!inputPath) {
+    return;
+  }
+
+  const normalized = {
+    inputPath,
+    sourceType: entry.sourceType || "auto",
+    projectName: entry.projectName || deriveProjectNameFromPath(inputPath),
+    savedAt: new Date().toISOString(),
+  };
+
+  state.recentImports = [
+    normalized,
+    ...state.recentImports.filter((item) => item.inputPath !== normalized.inputPath),
+  ].slice(0, 6);
+  persistRecentImports();
+  renderRecentImports();
+}
+
+function applyRecentImport(entry) {
+  const inputPath = String(entry && entry.inputPath ? entry.inputPath : "").trim();
+  if (!inputPath) {
+    return;
+  }
+
+  elements.wizardInputPath.value = inputPath;
+  elements.importInputPath.value = inputPath;
+  if (entry.sourceType && entry.sourceType !== "auto") {
+    elements.importSourceType.value = entry.sourceType;
+  }
+
+  if (!elements.wizardProjectName.value.trim() || elements.wizardProjectName.value === "my-first-bot") {
+    elements.wizardProjectName.value = entry.projectName || deriveProjectNameFromPath(inputPath);
+  }
+  if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
+    elements.importProjectName.value = entry.projectName || deriveProjectNameFromPath(inputPath);
+  }
+}
+
+function renderRecentImports() {
+  if (!elements.recentImportList) {
+    return;
+  }
+
+  elements.recentImportList.innerHTML = "";
+  if (!Array.isArray(state.recentImports) || state.recentImports.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-tip";
+    empty.textContent = "还没有最近记录。你分析过一次抓包后，这里会自动保存。";
+    elements.recentImportList.appendChild(empty);
+    return;
+  }
+
+  state.recentImports.forEach((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-card";
+    button.innerHTML = `
+      <span class="recent-type">${toSourceTypeLabel(item.sourceType)}</span>
+      <strong>${item.projectName || deriveProjectNameFromPath(item.inputPath)}</strong>
+      <span class="recent-file">${getPathTail(item.inputPath)}</span>
+      <span class="recent-time">${formatTimestamp(item.savedAt)}</span>
+    `;
+    button.addEventListener("click", () => applyRecentImport(item));
+    elements.recentImportList.appendChild(button);
+  });
 }
 
 function buildAuthModes(accountSource, preferred = "none") {
@@ -323,6 +460,34 @@ function renderManualTemplates() {
   });
 }
 
+function renderManualTemplateGallery() {
+  if (!elements.manualTemplateGallery) {
+    return;
+  }
+
+  elements.manualTemplateGallery.innerHTML = "";
+  MANUAL_TEMPLATES.forEach((template) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "template-card";
+    if (elements.manualTemplate.value === template.id) {
+      button.classList.add("active");
+    }
+    button.innerHTML = `
+      <span class="template-tag">${toAccountSourceLabel(template.accountSource)}</span>
+      <strong>${template.label}</strong>
+      <span>${template.summary}</span>
+    `;
+    button.addEventListener("click", async () => {
+      elements.manualTemplate.value = template.id;
+      await applyManualTemplate({ preserveProjectName: true });
+      renderManualTemplateGallery();
+      setStatus(elements.manualStatus, "模板已切换，点“一键生成（小白）”即可。");
+    });
+    elements.manualTemplateGallery.appendChild(button);
+  });
+}
+
 async function applyManualTemplate(options = {}) {
   const template = getManualTemplateById(elements.manualTemplate.value);
   const preserveProjectName = Boolean(options.preserveProjectName);
@@ -339,6 +504,7 @@ async function applyManualTemplate(options = {}) {
   elements.manualInterval.value = String(template.intervalMinutes || 60);
   elements.manualInterval.disabled = !elements.manualRepeat.checked;
   await refreshManualPresets(template.presetIds);
+  renderManualTemplateGallery();
 }
 
 function syncManualAuthModes(preferred) {
@@ -396,6 +562,105 @@ function renderImportGroups(groups) {
     wrapper.appendChild(text);
     elements.importGroupList.appendChild(wrapper);
   });
+}
+
+function buildImportSuggestions(analysis) {
+  const suggestions = [];
+
+  if (analysis.sourceType === "har") {
+    suggestions.push("这次使用的是 HAR，信息通常最全，优先推荐新手用这个格式。");
+  } else if (analysis.sourceType === "postman") {
+    suggestions.push("这次使用的是 Postman 导出，适合接口已经整理好的项目。");
+  } else if (analysis.sourceType === "curl") {
+    suggestions.push("这次使用的是 cURL 文本，适合先快速试跑 1 到 2 个接口。");
+  }
+
+  if ((analysis.candidates || []).length <= 2) {
+    suggestions.push("识别到的请求较少，建议确认你抓包时是否把完整流程都操作了一遍。");
+  } else {
+    suggestions.push(`已识别 ${(analysis.candidates || []).length} 个请求，建议先看前几个“登录/签到/claim”相关请求。`);
+  }
+
+  if (analysis.authMode === "evm_sign") {
+    suggestions.push("当前识别为钱包签名登录，生成后优先检查 nonce、message 和 token 提取路径。");
+  } else if (analysis.authMode === "request") {
+    suggestions.push("当前识别为账号密码登录，生成后优先检查登录接口地址和 token 提取路径。");
+  } else if (analysis.authMode === "account_token") {
+    suggestions.push("当前识别为直接用 Token，生成后只要准备好 token 文件就能先跑通。");
+  }
+
+  if ((analysis.groups || []).length > 0) {
+    suggestions.push(`系统已自动拼出 ${(analysis.groups || []).length} 组任务，默认顺序已经按常见执行顺序排好。`);
+  }
+
+  if (Array.isArray(analysis.warnings) && analysis.warnings.length > 0) {
+    suggestions.push("分析里带有警告项，生成前先看上面的黄色提示。");
+  }
+
+  return suggestions.slice(0, 5);
+}
+
+function renderImportSuggestions(analysis) {
+  if (!elements.importSuggestionList) {
+    return;
+  }
+
+  elements.importSuggestionList.innerHTML = "";
+  const suggestions = buildImportSuggestions(analysis);
+  if (suggestions.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-tip";
+    empty.textContent = "分析后，这里会给出下一步建议。";
+    elements.importSuggestionList.appendChild(empty);
+    return;
+  }
+
+  suggestions.forEach((text) => {
+    const item = document.createElement("div");
+    item.className = "advice-item";
+    item.textContent = text;
+    elements.importSuggestionList.appendChild(item);
+  });
+}
+
+function renderImportCandidatePreview(analysis) {
+  if (!elements.importCandidateList) {
+    return;
+  }
+
+  elements.importCandidateList.innerHTML = "";
+  const candidates = Array.isArray(analysis.candidates) ? analysis.candidates.slice(0, 8) : [];
+  if (candidates.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-tip";
+    empty.textContent = "分析后，这里会显示识别到的请求预览。";
+    elements.importCandidateList.appendChild(empty);
+    return;
+  }
+
+  candidates.forEach((candidate) => {
+    const item = document.createElement("div");
+    item.className = "candidate-item";
+    item.innerHTML = `
+      <div class="candidate-head">
+        <span class="candidate-method">${String(candidate.method || "GET").toUpperCase()}</span>
+        <span class="candidate-kind">${toRequestKindLabel(candidate.kind)}</span>
+      </div>
+      <strong>${candidate.name || "unnamed_request"}</strong>
+      <span>${candidate.summary || candidate.url || ""}</span>
+    `;
+    elements.importCandidateList.appendChild(item);
+  });
+}
+
+function renderImportInsights(analysis) {
+  renderImportSuggestions(analysis);
+  renderImportCandidatePreview(analysis);
+}
+
+function clearImportInsights() {
+  renderImportSuggestions({});
+  renderImportCandidatePreview({});
 }
 
 function renderImportSummary(analysis, sourceNote = "") {
@@ -476,10 +741,17 @@ async function analyzeImport() {
       (item) => (item.name ? `${item.id || "auto"} | ${item.name}` : String(item.id || ""))
     );
     renderImportGroups(analysis.groups);
+    renderImportInsights(analysis);
+    rememberRecentImport({
+      inputPath,
+      sourceType: analysis.sourceType,
+      projectName: elements.importProjectName.value.trim() || deriveProjectNameFromPath(inputPath),
+    });
     renderImportSummary(analysis, `${toSourceTypeLabel(analysis.sourceType)}（${detected.reason}）`);
   } catch (error) {
     state.importAnalysis = null;
     elements.importGroupList.innerHTML = "";
+    clearImportInsights();
     setStatus(elements.importSummary, `分析失败: ${error.message || String(error)}`, "error");
   }
 }
@@ -494,6 +766,12 @@ async function detectImportTypeOnly() {
   setStatus(elements.importSummary, "正在识别抓包类型...");
   try {
     const detected = await resolveImportSourceType(inputPath);
+    rememberRecentImport({
+      inputPath,
+      sourceType: detected.sourceType,
+      projectName: elements.importProjectName.value.trim() || deriveProjectNameFromPath(inputPath),
+    });
+    clearImportInsights();
     setStatus(
       elements.importSummary,
       `识别完成\n类型: ${toSourceTypeLabel(detected.sourceType)}\n原因: ${detected.reason}`
@@ -518,8 +796,19 @@ async function analyzeWizard() {
       inputPath,
     });
     state.wizardAnalysis = analysis;
+    state.importAnalysis = analysis;
     elements.importInputPath.value = inputPath;
     elements.importSourceType.value = detected.sourceType;
+    elements.importAccountSource.value = analysis.accountSource;
+    elements.importAccountFields.value = (analysis.accountFields || []).join(",");
+    syncImportAuthModes(analysis.authMode);
+    renderImportGroups(analysis.groups);
+    renderImportInsights(analysis);
+    rememberRecentImport({
+      inputPath,
+      sourceType: analysis.sourceType,
+      projectName: elements.wizardProjectName.value.trim() || deriveProjectNameFromPath(inputPath),
+    });
 
     const warningText = analysis.warnings && analysis.warnings.length > 0
       ? `\n警告:\n${analysis.warnings.map((warning, index) => `${index + 1}. ${warning}`).join("\n")}`
@@ -691,6 +980,12 @@ async function generateImportQuick() {
     elements.importAccountFields.value = (analysis.accountFields || []).join(",");
     syncImportAuthModes(analysis.authMode);
     renderImportGroups(analysis.groups);
+    renderImportInsights(analysis);
+    rememberRecentImport({
+      inputPath,
+      sourceType: analysis.sourceType,
+      projectName: elements.importProjectName.value.trim() || deriveProjectNameFromPath(inputPath),
+    });
     renderImportSummary(analysis, `${toSourceTypeLabel(analysis.sourceType)}（${detected.reason}）`);
 
     const result = await desktopApi.generateImportProject({
@@ -740,6 +1035,7 @@ async function bootstrap() {
   elements.manualAccountFields.value = (defaults.accountFields || []).join(",");
   syncManualAuthModes(defaults.authMode);
   renderManualTemplates();
+  renderManualTemplateGallery();
   await applyManualTemplate();
 
   elements.importAccountSource.value = "accounts";
@@ -748,6 +1044,9 @@ async function bootstrap() {
   fillSelect(elements.importNonceCandidate, [{ id: "", name: "(自动选择)" }], "");
   setStatus(elements.importSummary, "请先选择导入文件，再点击“分析抓包”。");
   setStatus(elements.wizardStatus, "先执行第 1 步，再点“开始自动分析”。");
+  clearImportInsights();
+  loadRecentImports();
+  renderRecentImports();
 
   applyNoviceMode(true);
   toggleTabs("wizard");
@@ -803,6 +1102,7 @@ elements.noviceMode.addEventListener("change", () => {
 
 elements.manualTemplate.addEventListener("change", async () => {
   await applyManualTemplate({ preserveProjectName: true });
+  renderManualTemplateGallery();
 });
 
 elements.manualApplyTemplate.addEventListener("click", async () => {
@@ -846,6 +1146,12 @@ elements.importPickFile.addEventListener("click", async () => {
   if (selected) {
     elements.importInputPath.value = selected;
     elements.wizardInputPath.value = selected;
+    if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
+      elements.importProjectName.value = deriveProjectNameFromPath(selected);
+    }
+    if (!elements.wizardProjectName.value.trim() || elements.wizardProjectName.value === "my-first-bot") {
+      elements.wizardProjectName.value = deriveProjectNameFromPath(selected);
+    }
   }
 });
 
@@ -860,6 +1166,12 @@ elements.wizardPickFile.addEventListener("click", async () => {
   if (selected) {
     elements.wizardInputPath.value = selected;
     elements.importInputPath.value = selected;
+    if (!elements.wizardProjectName.value.trim() || elements.wizardProjectName.value === "my-first-bot") {
+      elements.wizardProjectName.value = deriveProjectNameFromPath(selected);
+    }
+    if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
+      elements.importProjectName.value = deriveProjectNameFromPath(selected);
+    }
   }
 });
 
