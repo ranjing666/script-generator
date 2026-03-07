@@ -18,14 +18,58 @@
           小白模式（隐藏高级选项）
         </label>
         <div class="tabs">
-          <button id="tabManual" class="tab-btn active">手动拼接</button>
+          <button id="tabWizard" class="tab-btn active">新手向导</button>
+          <button id="tabManual" class="tab-btn">手动拼接</button>
           <button id="tabImport" class="tab-btn">抓包导入</button>
         </div>
       </div>
     </header>
 
     <main>
-      <section id="panelManual" class="panel">
+      <section id="panelWizard" class="panel">
+        <h2>新手向导（1-2-3）</h2>
+        <div class="wizard-steps">
+          <div class="step-card">
+            <div class="step-index">1</div>
+            <div class="step-content">
+              <div class="step-title">填项目名 + 选择抓包文件</div>
+              <div class="step-row">
+                <input id="wizardProjectName" type="text" value="my-first-bot" />
+                <div class="inline">
+                  <input id="wizardInputPath" type="text" />
+                  <button id="wizardPickFile" type="button">选择文件</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-index">2</div>
+            <div class="step-content">
+              <div class="step-title">自动分析（不用配任何技术项）</div>
+              <div class="step-row">
+                <button id="wizardAnalyze" type="button">开始自动分析</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-index">3</div>
+            <div class="step-content">
+              <div class="step-title">一键生成项目并打开目录</div>
+              <div class="step-row">
+                <button id="wizardGenerate" class="primary" type="button">一键生成</button>
+                <button id="wizardOpenDir" type="button" disabled>打开输出目录</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3>向导状态</h3>
+        <pre id="wizardStatus" class="status">先执行第 1 步，再点“开始自动分析”。</pre>
+      </section>
+
+      <section id="panelManual" class="panel hidden">
         <h2>手动拼接模式</h2>
 
         <div class="hero-card">

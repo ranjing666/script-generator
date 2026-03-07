@@ -105,6 +105,53 @@ main {
   background: rgba(17, 27, 48, 0.78);
 }
 
+.wizard-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.step-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(11, 20, 36, 0.8);
+  display: flex;
+  gap: 10px;
+}
+
+.step-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-title {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.step-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.step-row .inline {
+  flex: 1;
+  min-width: 280px;
+}
+
 .hero-card {
   border: 1px solid var(--line);
   border-radius: 12px;

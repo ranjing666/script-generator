@@ -4,7 +4,9 @@ const state = {
   meta: null,
   manualLastOutputDir: null,
   importLastOutputDir: null,
+  wizardLastOutputDir: null,
   importAnalysis: null,
+  wizardAnalysis: null,
   noviceMode: true,
 };
 
@@ -54,12 +56,22 @@ const MANUAL_TEMPLATES = [
 ];
 
 const elements = {
+  tabWizard: document.getElementById("tabWizard"),
   tabManual: document.getElementById("tabManual"),
   tabImport: document.getElementById("tabImport"),
+  panelWizard: document.getElementById("panelWizard"),
   panelManual: document.getElementById("panelManual"),
   panelImport: document.getElementById("panelImport"),
   metaText: document.getElementById("metaText"),
   noviceMode: document.getElementById("noviceMode"),
+
+  wizardProjectName: document.getElementById("wizardProjectName"),
+  wizardInputPath: document.getElementById("wizardInputPath"),
+  wizardPickFile: document.getElementById("wizardPickFile"),
+  wizardAnalyze: document.getElementById("wizardAnalyze"),
+  wizardGenerate: document.getElementById("wizardGenerate"),
+  wizardOpenDir: document.getElementById("wizardOpenDir"),
+  wizardStatus: document.getElementById("wizardStatus"),
 
   manualTemplate: document.getElementById("manualTemplate"),
   manualApplyTemplate: document.getElementById("manualApplyTemplate"),
@@ -169,11 +181,13 @@ function buildRunChecklist(outputDir) {
 }
 
 function toggleTabs(mode) {
-  const isManual = mode === "manual";
-  elements.tabManual.classList.toggle("active", isManual);
-  elements.tabImport.classList.toggle("active", !isManual);
-  elements.panelManual.classList.toggle("hidden", !isManual);
-  elements.panelImport.classList.toggle("hidden", isManual);
+  elements.tabWizard.classList.toggle("active", mode === "wizard");
+  elements.tabManual.classList.toggle("active", mode === "manual");
+  elements.tabImport.classList.toggle("active", mode === "import");
+
+  elements.panelWizard.classList.toggle("hidden", mode !== "wizard");
+  elements.panelManual.classList.toggle("hidden", mode !== "manual");
+  elements.panelImport.classList.toggle("hidden", mode !== "import");
 }
 
 async function refreshManualPresets(preferredPresetIds = null) {
@@ -395,6 +409,84 @@ async function detectImportTypeOnly() {
   }
 }
 
+async function analyzeWizard() {
+  const inputPath = elements.wizardInputPath.value.trim();
+  if (!inputPath) {
+    setStatus(elements.wizardStatus, "第 1 步还没完成：请先选择抓包文件。", "error");
+    return null;
+  }
+
+  setStatus(elements.wizardStatus, "正在自动分析抓包文件...");
+  try {
+    const detected = await desktopApi.detectImportSourceType(inputPath);
+    const analysis = await desktopApi.analyzeImport({
+      sourceType: detected.sourceType,
+      inputPath,
+    });
+    state.wizardAnalysis = analysis;
+    elements.importInputPath.value = inputPath;
+    elements.importSourceType.value = detected.sourceType;
+
+    const warningText = analysis.warnings && analysis.warnings.length > 0
+      ? `\n警告:\n${analysis.warnings.map((warning, index) => `${index + 1}. ${warning}`).join("\n")}`
+      : "";
+    setStatus(
+      elements.wizardStatus,
+      `分析完成\n识别类型: ${detected.sourceType}\n账号来源: ${analysis.accountSource}\n登录模式: ${analysis.authMode}\n任务组: ${analysis.groups.length}${warningText}`
+    );
+    return { detected, analysis };
+  } catch (error) {
+    state.wizardAnalysis = null;
+    setStatus(elements.wizardStatus, `分析失败: ${error.message || String(error)}`, "error");
+    return null;
+  }
+}
+
+async function generateWizard() {
+  setStatus(elements.wizardStatus, "正在执行一键生成...");
+  let analysis = state.wizardAnalysis;
+  if (!analysis) {
+    const wizardResult = await analyzeWizard();
+    if (!wizardResult) {
+      return;
+    }
+    analysis = wizardResult.analysis;
+  }
+
+  try {
+    const projectName = elements.wizardProjectName.value.trim() || "my-first-bot";
+    const result = await desktopApi.generateImportProject({
+      projectName,
+      sourceType: analysis.sourceType,
+      inputPath: elements.wizardInputPath.value.trim(),
+      outputDir: "",
+      accountSource: analysis.accountSource,
+      accountFields: analysis.accountFields,
+      authMode: analysis.authMode,
+      loginCandidateId: analysis.defaultLoginCandidateId || null,
+      nonceCandidateId: analysis.defaultNonceCandidateId || null,
+      selectedGroupIds: analysis.groups.map((group) => group.id),
+      useProxy: false,
+      repeat: false,
+      intervalMinutes: 60,
+      concurrency: 1,
+    });
+
+    state.wizardLastOutputDir = result.outputDir;
+    elements.wizardOpenDir.disabled = false;
+    const warningLines = result.report && result.report.warnings && result.report.warnings.length > 0
+      ? `\n警告:\n${result.report.warnings.map((item, index) => `${index + 1}. ${item}`).join("\n")}`
+      : "";
+    setStatus(
+      elements.wizardStatus,
+      `生成成功\n输出目录: ${result.outputDir}\n文件数: ${result.files.length}${warningLines}${buildRunChecklist(result.outputDir)}`,
+      result.report && result.report.warnings && result.report.warnings.length > 0 ? "warn" : ""
+    );
+  } catch (error) {
+    setStatus(elements.wizardStatus, `生成失败: ${error.message || String(error)}`, "error");
+  }
+}
+
 async function generateManual() {
   const presetIds = collectCheckedValues(elements.manualPresetList);
   if (presetIds.length === 0) {
@@ -561,10 +653,13 @@ async function bootstrap() {
   fillSelect(elements.importLoginCandidate, [{ id: "", name: "(自动选择)" }], "");
   fillSelect(elements.importNonceCandidate, [{ id: "", name: "(自动选择)" }], "");
   setStatus(elements.importSummary, "请先选择导入文件，再点击“分析抓包”。");
+  setStatus(elements.wizardStatus, "先执行第 1 步，再点“开始自动分析”。");
 
   applyNoviceMode(true);
+  toggleTabs("wizard");
 }
 
+elements.tabWizard.addEventListener("click", () => toggleTabs("wizard"));
 elements.tabManual.addEventListener("click", () => toggleTabs("manual"));
 elements.tabImport.addEventListener("click", () => toggleTabs("import"));
 
@@ -616,6 +711,21 @@ elements.importPickFile.addEventListener("click", async () => {
   const selected = await desktopApi.chooseImportFile();
   if (selected) {
     elements.importInputPath.value = selected;
+    elements.wizardInputPath.value = selected;
+  }
+});
+
+elements.wizardProjectName.addEventListener("change", () => {
+  if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
+    elements.importProjectName.value = elements.wizardProjectName.value.trim();
+  }
+});
+
+elements.wizardPickFile.addEventListener("click", async () => {
+  const selected = await desktopApi.chooseImportFile();
+  if (selected) {
+    elements.wizardInputPath.value = selected;
+    elements.importInputPath.value = selected;
   }
 });
 
@@ -625,6 +735,8 @@ elements.importDetect.addEventListener("click", detectImportTypeOnly);
 elements.importAnalyze.addEventListener("click", analyzeImport);
 elements.importGenerate.addEventListener("click", generateImport);
 elements.importQuickGenerate.addEventListener("click", generateImportQuick);
+elements.wizardAnalyze.addEventListener("click", analyzeWizard);
+elements.wizardGenerate.addEventListener("click", generateWizard);
 
 elements.manualOpenDir.addEventListener("click", async () => {
   if (state.manualLastOutputDir) {
@@ -635,6 +747,12 @@ elements.manualOpenDir.addEventListener("click", async () => {
 elements.importOpenDir.addEventListener("click", async () => {
   if (state.importLastOutputDir) {
     await desktopApi.openPath(state.importLastOutputDir);
+  }
+});
+
+elements.wizardOpenDir.addEventListener("click", async () => {
+  if (state.wizardLastOutputDir) {
+    await desktopApi.openPath(state.wizardLastOutputDir);
   }
 });
 
