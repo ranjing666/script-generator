@@ -568,6 +568,50 @@ button:disabled {
   line-height: 1.48;
 }
 
+.diagnosis-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.diagnosis-card {
+  border: 1px solid rgba(112, 160, 219, 0.24);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(13, 25, 44, 0.52);
+}
+
+.diagnosis-card.is-info {
+  border-color: rgba(30, 201, 255, 0.28);
+}
+
+.diagnosis-card.is-warn {
+  border-color: rgba(255, 200, 107, 0.34);
+  background: rgba(49, 33, 11, 0.34);
+}
+
+.diagnosis-card.is-error {
+  border-color: rgba(255, 114, 133, 0.34);
+  background: rgba(49, 14, 20, 0.34);
+}
+
+.diagnosis-card.is-success {
+  border-color: rgba(57, 214, 176, 0.34);
+  background: rgba(10, 42, 35, 0.34);
+}
+
+.diagnosis-title {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.diagnosis-body {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .analysis-deck {
   margin-top: 14px;
   display: grid;

@@ -100,6 +100,7 @@
 
         <h3>向导状态</h3>
         <pre id="wizardStatus" class="status">先执行第 1 步，再点“开始自动分析”。</pre>
+        <div id="wizardDiagnosis" class="diagnosis-list"></div>
 
         <h3>最近导入</h3>
         <div id="recentImportList" class="recent-list"></div>
@@ -177,6 +178,7 @@
           <button id="manualOpenDir" disabled>打开输出目录</button>
         </div>
         <pre id="manualStatus" class="status"></pre>
+        <div id="manualDiagnosis" class="diagnosis-list"></div>
       </section>
 
       <section id="panelImport" class="panel hidden">
@@ -271,6 +273,7 @@
 
         <h3>分析结果</h3>
         <pre id="importSummary" class="status"></pre>
+        <div id="importDiagnosis" class="diagnosis-list"></div>
 
         <div class="analysis-deck">
           <section class="analysis-card confidence-card">

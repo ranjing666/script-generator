@@ -132,6 +132,7 @@ const elements = {
   wizardGenerate: document.getElementById("wizardGenerate"),
   wizardOpenDir: document.getElementById("wizardOpenDir"),
   wizardStatus: document.getElementById("wizardStatus"),
+  wizardDiagnosis: document.getElementById("wizardDiagnosis"),
   recentImportList: document.getElementById("recentImportList"),
   onboardingModal: document.getElementById("onboardingModal"),
   onboardingClose: document.getElementById("onboardingClose"),
@@ -159,6 +160,7 @@ const elements = {
   manualGenerate: document.getElementById("manualGenerate"),
   manualOpenDir: document.getElementById("manualOpenDir"),
   manualStatus: document.getElementById("manualStatus"),
+  manualDiagnosis: document.getElementById("manualDiagnosis"),
 
   importProjectName: document.getElementById("importProjectName"),
   importSourceType: document.getElementById("importSourceType"),
@@ -182,6 +184,7 @@ const elements = {
   importQuickGenerate: document.getElementById("importQuickGenerate"),
   importOpenDir: document.getElementById("importOpenDir"),
   importSummary: document.getElementById("importSummary"),
+  importDiagnosis: document.getElementById("importDiagnosis"),
   importConfidenceBadge: document.getElementById("importConfidenceBadge"),
   importConfidenceScore: document.getElementById("importConfidenceScore"),
   importConfidenceMeter: document.getElementById("importConfidenceMeter"),
@@ -201,6 +204,7 @@ function setStatus(element, text, kind = "") {
     element.classList.add(kind);
   }
   element.textContent = text;
+  renderDiagnosticsForStatus(element, text, kind);
 }
 
 function showOnboardingIfNeeded() {
@@ -301,6 +305,16 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function getAccountFileGuide(accountSource) {
+  if (accountSource === "privateKeys") {
+    return "账号文件填 `data/privateKeys.txt`，每行一个私钥。";
+  }
+  if (accountSource === "tokens") {
+    return "账号文件填 `data/tokens.txt`，每行一个 token。";
+  }
+  return "账号文件填 `data/accounts.txt`，默认格式是 `email|password`。";
+}
+
 function loadRecentImports() {
   try {
     const raw = window.localStorage.getItem(RECENT_IMPORTS_KEY);
@@ -385,6 +399,250 @@ function renderRecentImports() {
     `;
     button.addEventListener("click", () => applyRecentImport(item));
     elements.recentImportList.appendChild(button);
+  });
+}
+
+function buildDiagnosisCard(tone, title, body) {
+  return { tone, title, body };
+}
+
+function getDiagnosisTarget(element) {
+  if (element === elements.wizardStatus) {
+    return {
+      container: elements.wizardDiagnosis,
+      mode: "wizard",
+      analysis: state.wizardAnalysis,
+      accountSource: state.wizardAnalysis ? state.wizardAnalysis.accountSource : null,
+    };
+  }
+
+  if (element === elements.importSummary) {
+    return {
+      container: elements.importDiagnosis,
+      mode: "import",
+      analysis: state.importAnalysis,
+      accountSource: elements.importAccountSource ? elements.importAccountSource.value : null,
+    };
+  }
+
+  if (element === elements.manualStatus) {
+    return {
+      container: elements.manualDiagnosis,
+      mode: "manual",
+      analysis: null,
+      accountSource: elements.manualAccountSource ? elements.manualAccountSource.value : null,
+    };
+  }
+
+  return null;
+}
+
+function buildDiagnosticsForStatus({ mode, text, kind, analysis, accountSource }) {
+  const normalized = String(text || "").trim();
+  const diagnostics = [];
+
+  if (!normalized) {
+    return diagnostics;
+  }
+
+  if (/先执行第 1 步|请先选择导入文件|请先选择抓包文件/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "info",
+        "先准备抓包文件",
+        "优先选 `.har` 文件；如果你不会抓包，直接点“不会抓包？点这里”，按提示操作一遍网页流程再导出。"
+      )
+    );
+  }
+
+  if (/不是有效 JSON/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "error",
+        "文件格式坏了",
+        "这个文件内容不是正常 JSON。最常见原因是导出中断、手改坏了，或者拿错文件。重新从浏览器/Postman 导出一份新的。"
+      )
+    );
+  }
+
+  if (/缺少 log\.entries/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "error",
+        "HAR 导出不完整",
+        "当前 HAR 不是标准的完整抓包。回到浏览器 Network 面板，右键请求列表，选择 “Save all as HAR with content”。"
+      )
+    );
+  }
+
+  if (/缺少 item 列表/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "error",
+        "Postman 导出类型不对",
+        "需要导出的是 Collection，而不是单个 Request。建议导出 Collection v2.1 JSON。"
+      )
+    );
+  }
+
+  if (/没有从抓包文件中解析出可导入请求/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "抓包里没抓到接口",
+        "通常是你只打开了网页但没点登录/签到/任务按钮，或者导出的全是静态资源。重新抓一次完整操作流程。"
+      )
+    );
+  }
+
+  if (/签名登录缺少 nonce|缺少 nonce|messageTemplate|messagePath/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "签名登录链路不完整",
+        "钱包站通常至少需要 `nonce/challenge -> sign -> login` 三步。抓包时要把这三步都完整操作一遍。"
+      )
+    );
+  }
+
+  if (/没提取到 token|没有从响应里提取到 token/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "Token 提取路径不对",
+        "生成后的 `project.config.json` 里，检查 `auth.extractTokenPath` 是否真的指向响应里的 token 字段。"
+      )
+    );
+  }
+
+  if (/没有取到可处理列表/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "列表路径没对上",
+        "说明 `itemsPath` 指到的不是数组。去 `project.config.json` 里确认真实列表路径，例如 `data.items` 或 `result.tasks`。"
+      )
+    );
+  }
+
+  if (/缺少 RPC_URL/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "链上节点地址没填",
+        "打开生成目录下的 `.env`，填上 `RPC_URL=`。可以去项目方文档找，或者去 Chainlist 复制对应链的 RPC。"
+      )
+    );
+  }
+
+  if (/429|请求太频繁|限流/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "请求太快被限流了",
+        "把并发先降到 1，必要时在任务之间加等待步骤，或者换代理。对新手来说，先跑慢一点比跑快更稳。"
+      )
+    );
+  }
+
+  if (/unable to get local issuer certificate/i.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "warn",
+        "目标站证书链异常",
+        "这通常不是生成器挂了，而是示例地址或本机证书环境问题。先换成真实项目接口再测，若只在某台机器出现，再检查系统证书。"
+      )
+    );
+  }
+
+  if (/分析完成/.test(normalized) && analysis) {
+    const confidence = getImportConfidence(analysis);
+    diagnostics.push(
+      buildDiagnosisCard(
+        confidence.level === "low" ? "warn" : "info",
+        "先看可信度再生成",
+        confidence.level === "low"
+          ? "当前可信度偏低，建议优先重新抓一次更完整的 HAR，再生成会更稳。"
+          : "当前分析结果基本可用。生成后先检查登录接口、token 路径和账号文件，再开始跑。"
+      )
+    );
+
+    diagnostics.push(
+      buildDiagnosisCard(
+        "info",
+        "账号文件怎么填",
+        getAccountFileGuide(accountSource || analysis.accountSource)
+      )
+    );
+  }
+
+  if (/生成成功/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "success",
+        "下一步就做这三件事",
+        "进入输出目录后依次运行：`npm install`、`copy .env.example .env`、`npm start`。第一次先别急着改太多，优先确认能启动。"
+      )
+    );
+    diagnostics.push(
+      buildDiagnosisCard(
+        "info",
+        "最先要检查的文件",
+        "先看 `.env`、`project.config.json` 和 `data/` 目录。大多数跑不通的问题，都会落在这三处。"
+      )
+    );
+  }
+
+  if (/分析失败|生成失败|初始化失败/.test(normalized) && diagnostics.length === 0) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        kind === "error" ? "error" : "warn",
+        "当前步骤失败了",
+        "先看状态区里的具体报错词；如果还是不懂，就把这一段状态文字原样发出来，我可以直接按报错定位。"
+      )
+    );
+  }
+
+  if (mode === "manual" && /模板已切换|模板已套用/.test(normalized)) {
+    diagnostics.push(
+      buildDiagnosisCard(
+        "info",
+        "模板已经准备好",
+        "下一步直接点“一键生成（小白）”。如果你只是想先跑通，不建议现在去改高级选项。"
+      )
+    );
+  }
+
+  return diagnostics.slice(0, 4);
+}
+
+function renderDiagnosticsForStatus(element, text, kind = "") {
+  const target = getDiagnosisTarget(element);
+  if (!target || !target.container) {
+    return;
+  }
+
+  const diagnostics = buildDiagnosticsForStatus({
+    mode: target.mode,
+    text,
+    kind,
+    analysis: target.analysis,
+    accountSource: target.accountSource,
+  });
+
+  target.container.innerHTML = "";
+  if (diagnostics.length === 0) {
+    return;
+  }
+
+  diagnostics.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = `diagnosis-card is-${item.tone}`;
+    card.innerHTML = `
+      <div class="diagnosis-title">${item.title}</div>
+      <div class="diagnosis-body">${item.body}</div>
+    `;
+    target.container.appendChild(card);
   });
 }
 
