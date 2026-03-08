@@ -49,23 +49,33 @@ function assertStarterFiles(outputDir, label) {
   const envExamplePath = path.join(outputDir, ".env.example");
   const envPath = path.join(outputDir, ".env");
   const starterGuidePath = path.join(outputDir, "00-先看这里-零基础说明.md");
+  const doctorHelperPath = path.join(outputDir, "0-双击-运行前检查.bat");
   const installScriptPath = path.join(outputDir, "1-双击-安装依赖.bat");
   const startScriptPath = path.join(outputDir, "2-双击-启动脚本.bat");
+  const doctorScriptPath = path.join(outputDir, "doctor.js");
 
-  [envExamplePath, envPath, starterGuidePath, installScriptPath, startScriptPath].forEach((filePath) => {
+  [envExamplePath, envPath, starterGuidePath, doctorHelperPath, installScriptPath, startScriptPath, doctorScriptPath].forEach((filePath) => {
     assert(fs.existsSync(filePath), `${label}: missing generated helper file ${path.basename(filePath)}`);
   });
 
   const envExampleText = fs.readFileSync(envExamplePath, "utf8");
   const envText = fs.readFileSync(envPath, "utf8");
   const starterGuideText = fs.readFileSync(starterGuidePath, "utf8");
+  const doctorHelperText = fs.readFileSync(doctorHelperPath, "utf8");
   const installScriptText = fs.readFileSync(installScriptPath, "utf8");
   const startScriptText = fs.readFileSync(startScriptPath, "utf8");
+  const doctorScriptText = fs.readFileSync(doctorScriptPath, "utf8");
 
   assert(envText === envExampleText, `${label}: .env should match .env.example on generation`);
+  assert(starterGuideText.includes("0-双击-运行前检查.bat"), `${label}: starter guide missing doctor helper`);
   assert(starterGuideText.includes("1-双击-安装依赖.bat"), `${label}: starter guide missing install helper`);
+  assert(doctorHelperText.includes("node doctor.js"), `${label}: doctor helper missing doctor runner`);
   assert(installScriptText.includes("npm install"), `${label}: install helper missing npm install`);
-  assert(startScriptText.includes("npm start"), `${label}: start helper missing npm start`);
+  assert(installScriptText.includes("node doctor.js"), `${label}: install helper missing doctor check`);
+  assert(startScriptText.includes("node doctor.js"), `${label}: start helper missing doctor check`);
+  assert(startScriptText.includes("node main.js"), `${label}: start helper missing node main.js`);
+  assert(doctorScriptText.includes("运行前检查报告.txt"), `${label}: doctor script missing report output`);
+  runNodeCheck(doctorScriptPath);
   console.log(`[PASS] ${label}-starter-files`);
 }
 
@@ -296,6 +306,46 @@ function runPreviewChecks() {
   console.log("[PASS] preview-projects");
 }
 
+function runGeneratedDoctorCheck() {
+  const outputDir = path.join(ROOT, "generated", "health-doctor");
+  createProject({
+    projectName: "health-doctor",
+    outputDir,
+    accountSource: "tokens",
+    accountFields: [],
+    useProxy: false,
+    repeat: false,
+    intervalMinutes: 0,
+    concurrency: 1,
+    auth: {
+      type: "account_token",
+      tokenField: "token",
+    },
+    authMode: "account_token",
+    selectedPresets: [],
+    customTasks: [
+      {
+        type: "request",
+        name: "ping",
+        method: "GET",
+        url: "https://example.com/ping",
+      },
+    ],
+  });
+
+  fs.writeFileSync(path.join(outputDir, "data", "tokens.txt"), "real_token_value\n", "utf8");
+  execFileSync(process.execPath, ["doctor.js"], {
+    cwd: outputDir,
+    stdio: "pipe",
+  });
+
+  const reportPath = path.join(outputDir, "运行前检查报告.txt");
+  assert(fs.existsSync(reportPath), "generated-doctor: missing report file");
+  const reportText = fs.readFileSync(reportPath, "utf8");
+  assert(reportText.includes("结论: 可以启动。"), "generated-doctor: doctor did not report success");
+  console.log("[PASS] generated-doctor");
+}
+
 function expectThrows(fn, label, expectedText) {
   let thrown = false;
   try {
@@ -396,6 +446,7 @@ function main() {
   runPackageNameFallbackCheck();
   runBatchSubmitPresetCheck();
   runPreviewChecks();
+  runGeneratedDoctorCheck();
   runInvalidImportChecks();
   const desktopPresets = desktopService.listPresets("privateKeys");
   assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");

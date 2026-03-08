@@ -697,7 +697,7 @@ function buildDiagnosticsForStatus({ mode, text, kind, analysis, accountSource }
       buildDiagnosisCard(
         "success",
         "下一步就做这三件事",
-        "进入输出目录后，先双击 `1-双击-安装依赖.bat`，再检查 `.env` 和 `data/`，最后双击 `2-双击-启动脚本.bat`。第一次先别急着改太多，优先确认能启动。"
+        "进入输出目录后，先双击 `0-双击-运行前检查.bat` 看缺什么，再补 `.env` 和 `data/`，最后双击 `2-双击-启动脚本.bat`。现在 2 号脚本会自动补装依赖并先做自检。"
       )
     );
     diagnostics.push(
@@ -813,10 +813,11 @@ function buildRunChecklist(outputDir) {
     "",
     "下一步（照着做就行）:",
     `1. 进入目录: ${outputDir}`,
-    "2. 双击: 1-双击-安装依赖.bat",
-    "3. 打开: .env 和 data/ 目录里的示例文件，改成你自己的值",
-    "4. 双击: 2-双击-启动脚本.bat",
-    "5. 看不懂时，先打开: 00-先看这里-零基础说明.md",
+    "2. 先双击: 0-双击-运行前检查.bat",
+    "3. 再双击: 1-双击-安装依赖.bat",
+    "4. 打开: .env 和 data/ 目录里的示例文件，改成你自己的值",
+    "5. 最后双击: 2-双击-启动脚本.bat",
+    "6. 看不懂时，先打开: 00-先看这里-零基础说明.md",
   ].join("\n");
 }
 
