@@ -246,6 +246,56 @@ function runBatchSubmitPresetCheck() {
   console.log("[PASS] batch-submit-preset");
 }
 
+function runPreviewChecks() {
+  const manualPreview = desktopService.previewManualProject({
+    projectName: "health-preview-manual",
+    outputDir: path.join(ROOT, "generated", "health-preview-manual"),
+    accountSource: "accounts",
+    accountFields: ["email", "password"],
+    authMode: "request",
+    useProxy: false,
+    repeat: false,
+    intervalMinutes: 0,
+    concurrency: 1,
+    presetIds: ["api_batch_submit"],
+  });
+
+  assert(
+    manualPreview.projectConfig
+      && Array.isArray(manualPreview.projectConfig.tasks)
+      && manualPreview.projectConfig.tasks.some((task) => task.type === "requestFromFile"),
+    "preview-manual: missing requestFromFile task"
+  );
+
+  const importPreview = desktopService.previewImportProject({
+    projectName: "health-preview-import",
+    outputDir: path.join(ROOT, "generated", "health-preview-import"),
+    sourceType: "har",
+    inputPath: path.join(ROOT, "examples", "sample.har"),
+    accountSource: "accounts",
+    accountFields: ["email", "password"],
+    authMode: "request",
+    useProxy: false,
+    repeat: false,
+    intervalMinutes: 0,
+    concurrency: 1,
+  });
+
+  assert(
+    importPreview.projectConfig
+      && Array.isArray(importPreview.projectConfig.tasks)
+      && importPreview.projectConfig.tasks.length > 0,
+    "preview-import: missing tasks"
+  );
+  assert(
+    importPreview.report
+      && importPreview.report.selected
+      && importPreview.report.selected.groupCount > 0,
+    "preview-import: missing import report summary"
+  );
+  console.log("[PASS] preview-projects");
+}
+
 function expectThrows(fn, label, expectedText) {
   let thrown = false;
   try {
@@ -345,6 +395,7 @@ function main() {
 
   runPackageNameFallbackCheck();
   runBatchSubmitPresetCheck();
+  runPreviewChecks();
   runInvalidImportChecks();
   const desktopPresets = desktopService.listPresets("privateKeys");
   assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");

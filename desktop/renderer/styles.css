@@ -607,6 +607,61 @@ button:disabled {
   gap: 8px;
 }
 
+.preview-card {
+  margin-top: 14px;
+  border: 1px solid rgba(112, 160, 219, 0.3);
+  border-radius: 14px;
+  padding: 12px;
+  background: linear-gradient(160deg, rgba(10, 23, 41, 0.84), rgba(7, 18, 33, 0.68));
+}
+
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.preview-subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.config-preview {
+  margin: 0;
+  min-height: 160px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid rgba(109, 157, 212, 0.28);
+  border-radius: 12px;
+  background: rgba(6, 15, 28, 0.92);
+  color: #d7e8ff;
+  padding: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  font-size: 12px;
+  font-family: "Cascadia Code", "Consolas", "JetBrains Mono", monospace;
+}
+
+.config-preview.is-empty,
+.config-preview.is-loading {
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+.config-preview.is-error {
+  white-space: pre-wrap;
+  color: #ffd0d7;
+}
+
 .diagnosis-card {
   border: 1px solid rgba(112, 160, 219, 0.24);
   border-radius: 12px;
@@ -1084,5 +1139,9 @@ body.novice-mode .advanced-only {
   .recent-list,
   .analysis-deck {
     grid-template-columns: 1fr;
+  }
+
+  .preview-head {
+    flex-direction: column;
   }
 }

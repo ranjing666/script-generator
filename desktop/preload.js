@@ -29,8 +29,14 @@ contextBridge.exposeInMainWorld("desktopApi", {
   generateManualProject(options) {
     return invoke("project:generate-manual", options);
   },
+  previewManualProject(options) {
+    return invoke("project:preview-manual", options);
+  },
   generateImportProject(options) {
     return invoke("project:generate-import", options);
+  },
+  previewImportProject(options) {
+    return invoke("project:preview-import", options);
   },
   openPath(targetPath) {
     return invoke("shell:open-path", targetPath);

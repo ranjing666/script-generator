@@ -11,6 +11,10 @@ const state = {
   recentImports: [],
   manualTemplateSearch: "",
   manualTemplateFilter: "all",
+  manualPreviewText: "",
+  importPreviewText: "",
+  manualPreviewRequestId: 0,
+  importPreviewRequestId: 0,
 };
 
 const MANUAL_TEMPLATES = [
@@ -218,6 +222,9 @@ const elements = {
   manualOpenDir: document.getElementById("manualOpenDir"),
   manualStatus: document.getElementById("manualStatus"),
   manualDiagnosis: document.getElementById("manualDiagnosis"),
+  manualPreviewRefresh: document.getElementById("manualPreviewRefresh"),
+  manualPreviewCopy: document.getElementById("manualPreviewCopy"),
+  manualPreview: document.getElementById("manualPreview"),
 
   importProjectName: document.getElementById("importProjectName"),
   importSourceType: document.getElementById("importSourceType"),
@@ -251,6 +258,9 @@ const elements = {
   importSuggestionList: document.getElementById("importSuggestionList"),
   importCandidateList: document.getElementById("importCandidateList"),
   importGroupList: document.getElementById("importGroupList"),
+  importPreviewRefresh: document.getElementById("importPreviewRefresh"),
+  importPreviewCopy: document.getElementById("importPreviewCopy"),
+  importPreview: document.getElementById("importPreview"),
 };
 
 const ONBOARDING_KEY = "script_generator_onboarding_seen_v2";
@@ -263,6 +273,54 @@ function setStatus(element, text, kind = "") {
   }
   element.textContent = text;
   renderDiagnosticsForStatus(element, text, kind);
+}
+
+function setPreviewText(element, text, kind = "") {
+  if (!element) {
+    return;
+  }
+
+  element.classList.remove("is-empty", "is-error", "is-loading");
+  if (kind) {
+    element.classList.add(`is-${kind}`);
+  }
+  element.textContent = text;
+}
+
+function setCopyButtonEnabled(button, enabled) {
+  if (!button) {
+    return;
+  }
+  button.disabled = !enabled;
+}
+
+function clearManualPreview(message = "调整配置后，这里会显示即将生成的 project.config.json。") {
+  state.manualPreviewRequestId += 1;
+  state.manualPreviewText = "";
+  setPreviewText(elements.manualPreview, message, "empty");
+  setCopyButtonEnabled(elements.manualPreviewCopy, false);
+}
+
+function clearImportPreview(message = "分析完成后，这里会显示即将生成的 project.config.json。") {
+  state.importPreviewRequestId += 1;
+  state.importPreviewText = "";
+  setPreviewText(elements.importPreview, message, "empty");
+  setCopyButtonEnabled(elements.importPreviewCopy, false);
+}
+
+function renderPreviewJson(mode, projectConfig) {
+  const text = `${JSON.stringify(projectConfig, null, 2)}\n`;
+
+  if (mode === "manual") {
+    state.manualPreviewText = text;
+    setPreviewText(elements.manualPreview, text);
+    setCopyButtonEnabled(elements.manualPreviewCopy, true);
+    return;
+  }
+
+  state.importPreviewText = text;
+  setPreviewText(elements.importPreview, text);
+  setCopyButtonEnabled(elements.importPreviewCopy, true);
 }
 
 function showOnboardingIfNeeded() {
@@ -762,6 +820,126 @@ function buildRunChecklist(outputDir) {
   ].join("\n");
 }
 
+function getManualProjectPayload() {
+  return {
+    projectName: elements.manualProjectName.value.trim(),
+    outputDir: elements.manualOutputDir.value.trim(),
+    accountSource: elements.manualAccountSource.value,
+    accountFields: toAccountFieldsArray(elements.manualAccountFields.value),
+    authMode: elements.manualAuthMode.value,
+    useProxy: elements.manualUseProxy.checked,
+    repeat: elements.manualRepeat.checked,
+    intervalMinutes: Number(elements.manualInterval.value || 60),
+    concurrency: Number(elements.manualConcurrency.value || 1),
+    presetIds: collectCheckedValues(elements.manualPresetList),
+  };
+}
+
+function getImportProjectPayload(sourceType) {
+  return {
+    projectName: elements.importProjectName.value.trim(),
+    sourceType,
+    inputPath: elements.importInputPath.value.trim(),
+    outputDir: elements.importOutputDir.value.trim(),
+    accountSource: elements.importAccountSource.value,
+    accountFields: toAccountFieldsArray(elements.importAccountFields.value),
+    authMode: elements.importAuthMode.value,
+    loginCandidateId: elements.importLoginCandidate.value || null,
+    nonceCandidateId: elements.importNonceCandidate.value || null,
+    selectedGroupIds: collectCheckedValues(elements.importGroupList),
+    useProxy: elements.importUseProxy.checked,
+    repeat: elements.importRepeat.checked,
+    intervalMinutes: Number(elements.importInterval.value || 60),
+    concurrency: Number(elements.importConcurrency.value || 1),
+  };
+}
+
+function invalidateImportAnalysis(message = "") {
+  state.importAnalysis = null;
+  elements.importGroupList.innerHTML = "";
+  clearImportInsights();
+  clearImportPreview("请重新分析后再查看最终配置。");
+  if (message) {
+    setStatus(elements.importSummary, message, "warn");
+  }
+}
+
+async function refreshManualPreview() {
+  const requestId = ++state.manualPreviewRequestId;
+  const payload = getManualProjectPayload();
+
+  if (payload.presetIds.length === 0) {
+    clearManualPreview("至少选择一个任务积木后，这里才会显示配置预览。");
+    return;
+  }
+
+  setCopyButtonEnabled(elements.manualPreviewCopy, false);
+  setPreviewText(elements.manualPreview, "正在生成配置预览...", "loading");
+
+  try {
+    const preview = await desktopApi.previewManualProject(payload);
+    if (requestId !== state.manualPreviewRequestId) {
+      return;
+    }
+    renderPreviewJson("manual", preview.projectConfig);
+  } catch (error) {
+    if (requestId !== state.manualPreviewRequestId) {
+      return;
+    }
+    state.manualPreviewText = "";
+    setPreviewText(
+      elements.manualPreview,
+      `预览失败: ${error.message || String(error)}`,
+      "error"
+    );
+  }
+}
+
+async function refreshImportPreview() {
+  const requestId = ++state.importPreviewRequestId;
+  const inputPath = elements.importInputPath.value.trim();
+  if (!inputPath) {
+    clearImportPreview("请先选择导入文件并完成分析。");
+    return;
+  }
+
+  if (!state.importAnalysis) {
+    clearImportPreview("请先点击“分析抓包”，分析完成后这里才会显示配置预览。");
+    return;
+  }
+
+  const sourceType = elements.importSourceType.value && elements.importSourceType.value !== "auto"
+    ? elements.importSourceType.value
+    : state.importAnalysis.sourceType;
+  const payload = getImportProjectPayload(sourceType);
+
+  if (payload.selectedGroupIds.length === 0) {
+    clearImportPreview("至少选择一个任务组后，这里才会显示配置预览。");
+    return;
+  }
+
+  setCopyButtonEnabled(elements.importPreviewCopy, false);
+  setPreviewText(elements.importPreview, "正在生成配置预览...", "loading");
+
+  try {
+    const preview = await desktopApi.previewImportProject(payload);
+    if (requestId !== state.importPreviewRequestId) {
+      return;
+    }
+    renderPreviewJson("import", preview.projectConfig);
+  } catch (error) {
+    if (requestId !== state.importPreviewRequestId) {
+      return;
+    }
+    state.importPreviewText = "";
+    setPreviewText(
+      elements.importPreview,
+      `预览失败: ${error.message || String(error)}`,
+      "error"
+    );
+  }
+}
+
 function toggleTabs(mode) {
   elements.tabWizard.classList.toggle("active", mode === "wizard");
   elements.tabManual.classList.toggle("active", mode === "manual");
@@ -1089,6 +1267,7 @@ async function applyManualTemplate(options = {}) {
   elements.manualInterval.disabled = !elements.manualRepeat.checked;
   await refreshManualPresets(template.presetIds);
   renderManualTemplateGallery();
+  await refreshManualPreview();
 }
 
 function syncManualAuthModes(preferred) {
@@ -1589,10 +1768,12 @@ async function analyzeImport() {
       projectName: elements.importProjectName.value.trim() || deriveProjectNameFromPath(inputPath),
     });
     renderImportSummary(analysis, `${toSourceTypeLabel(analysis.sourceType)}（${detected.reason}）`);
+    await refreshImportPreview();
   } catch (error) {
     state.importAnalysis = null;
     elements.importGroupList.innerHTML = "";
     clearImportInsights();
+    clearImportPreview("分析失败后无法预览，请修正后重试。");
     setStatus(elements.importSummary, `分析失败: ${error.message || String(error)}`, "error");
   }
 }
@@ -1617,6 +1798,7 @@ async function detectImportTypeOnly() {
       elements.importSummary,
       `识别完成\n类型: ${toSourceTypeLabel(detected.sourceType)}\n原因: ${detected.reason}`
     );
+    clearImportPreview("只识别了抓包类型；先点“分析抓包”，再看最终配置预览。");
   } catch (error) {
     setStatus(elements.importSummary, `识别失败: ${error.message || String(error)}`, "error");
   }
@@ -1645,6 +1827,7 @@ async function analyzeWizard() {
     syncImportAuthModes(analysis.authMode);
     renderImportGroups(analysis.groups);
     renderImportInsights(analysis);
+    await refreshImportPreview();
     rememberRecentImport({
       inputPath,
       sourceType: analysis.sourceType,
@@ -1662,6 +1845,9 @@ async function analyzeWizard() {
     return { detected, analysis };
   } catch (error) {
     state.wizardAnalysis = null;
+    state.importAnalysis = null;
+    clearImportInsights();
+    clearImportPreview("自动分析失败，暂时无法展示最终配置。");
     setStatus(elements.wizardStatus, `分析失败: ${error.message || String(error)}`, "error");
     return null;
   }
@@ -1713,26 +1899,15 @@ async function generateWizard() {
 }
 
 async function generateManual() {
-  const presetIds = collectCheckedValues(elements.manualPresetList);
-  if (presetIds.length === 0) {
+  const payload = getManualProjectPayload();
+  if (payload.presetIds.length === 0) {
     setStatus(elements.manualStatus, "请至少选择一个任务积木。", "error");
     return;
   }
 
   setStatus(elements.manualStatus, "正在生成项目...");
   try {
-    const result = await desktopApi.generateManualProject({
-      projectName: elements.manualProjectName.value.trim(),
-      outputDir: elements.manualOutputDir.value.trim(),
-      accountSource: elements.manualAccountSource.value,
-      accountFields: toAccountFieldsArray(elements.manualAccountFields.value),
-      authMode: elements.manualAuthMode.value,
-      useProxy: elements.manualUseProxy.checked,
-      repeat: elements.manualRepeat.checked,
-      intervalMinutes: Number(elements.manualInterval.value || 60),
-      concurrency: Number(elements.manualConcurrency.value || 1),
-      presetIds,
-    });
+    const result = await desktopApi.generateManualProject(payload);
 
     state.manualLastOutputDir = result.outputDir;
     elements.manualOpenDir.disabled = false;
@@ -1757,30 +1932,18 @@ async function generateImport() {
     return;
   }
 
-  const selectedGroupIds = collectCheckedValues(elements.importGroupList);
-  if (selectedGroupIds.length === 0) {
+  const sourceType = elements.importSourceType.value && elements.importSourceType.value !== "auto"
+    ? elements.importSourceType.value
+    : state.importAnalysis.sourceType;
+  const payload = getImportProjectPayload(sourceType);
+  if (payload.selectedGroupIds.length === 0) {
     setStatus(elements.importSummary, "请至少选择一个任务组。", "error");
     return;
   }
 
   setStatus(elements.importSummary, "正在生成导入项目...");
   try {
-    const result = await desktopApi.generateImportProject({
-      projectName: elements.importProjectName.value.trim(),
-      sourceType: elements.importSourceType.value,
-      inputPath: elements.importInputPath.value.trim(),
-      outputDir: elements.importOutputDir.value.trim(),
-      accountSource: elements.importAccountSource.value,
-      accountFields: toAccountFieldsArray(elements.importAccountFields.value),
-      authMode: elements.importAuthMode.value,
-      loginCandidateId: elements.importLoginCandidate.value || null,
-      nonceCandidateId: elements.importNonceCandidate.value || null,
-      selectedGroupIds,
-      useProxy: elements.importUseProxy.checked,
-      repeat: elements.importRepeat.checked,
-      intervalMinutes: Number(elements.importInterval.value || 60),
-      concurrency: Number(elements.importConcurrency.value || 1),
-    });
+    const result = await desktopApi.generateImportProject(payload);
 
     state.importLastOutputDir = result.outputDir;
     elements.importOpenDir.disabled = false;
@@ -1829,6 +1992,7 @@ async function generateImportQuick() {
       projectName: elements.importProjectName.value.trim() || deriveProjectNameFromPath(inputPath),
     });
     renderImportSummary(analysis, `${toSourceTypeLabel(analysis.sourceType)}（${detected.reason}）`);
+    await refreshImportPreview();
 
     const result = await desktopApi.generateImportProject({
       projectName: elements.importProjectName.value.trim(),
@@ -1888,6 +2052,7 @@ async function bootstrap() {
   setStatus(elements.importSummary, "请先选择导入文件，再点击“分析抓包”。");
   setStatus(elements.wizardStatus, "先执行第 1 步，再点“开始自动分析”。");
   clearImportInsights();
+  clearImportPreview();
   loadRecentImports();
   renderRecentImports();
 
@@ -1941,6 +2106,10 @@ document.addEventListener("keydown", (event) => {
 
 elements.noviceMode.addEventListener("change", () => {
   applyNoviceMode(elements.noviceMode.checked);
+  refreshManualPreview().catch(() => {});
+  if (state.importAnalysis) {
+    refreshImportPreview().catch(() => {});
+  }
 });
 
 elements.manualTemplate.addEventListener("change", async () => {
@@ -1963,24 +2132,31 @@ elements.manualApplyTemplate.addEventListener("click", async () => {
 elements.manualAccountSource.addEventListener("change", async () => {
   syncManualAuthModes(elements.manualAuthMode.value);
   await refreshManualPresets();
+  await refreshManualPreview();
 });
 
 elements.manualRepeat.addEventListener("change", () => {
   elements.manualInterval.disabled = !elements.manualRepeat.checked;
+  refreshManualPreview().catch(() => {});
 });
 
 elements.importAccountSource.addEventListener("change", () => {
   syncImportAuthModes(elements.importAuthMode.value);
+  invalidateImportAnalysis("账号来源已变更，请重新分析抓包。");
 });
 
 elements.importRepeat.addEventListener("change", () => {
   elements.importInterval.disabled = !elements.importRepeat.checked;
+  if (state.importAnalysis) {
+    refreshImportPreview().catch(() => {});
+  }
 });
 
 elements.manualPickOutput.addEventListener("click", async () => {
   const selected = await desktopApi.chooseOutputDir();
   if (selected) {
     elements.manualOutputDir.value = selected;
+    await refreshManualPreview();
   }
 });
 
@@ -1988,12 +2164,16 @@ elements.importPickOutput.addEventListener("click", async () => {
   const selected = await desktopApi.chooseOutputDir();
   if (selected) {
     elements.importOutputDir.value = selected;
+    if (state.importAnalysis) {
+      await refreshImportPreview();
+    }
   }
 });
 
 elements.importPickFile.addEventListener("click", async () => {
   const selected = await desktopApi.chooseImportFile();
   if (selected) {
+    state.wizardAnalysis = null;
     elements.importInputPath.value = selected;
     elements.wizardInputPath.value = selected;
     if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
@@ -2002,18 +2182,23 @@ elements.importPickFile.addEventListener("click", async () => {
     if (!elements.wizardProjectName.value.trim() || elements.wizardProjectName.value === "my-first-bot") {
       elements.wizardProjectName.value = deriveProjectNameFromPath(selected);
     }
+    invalidateImportAnalysis("导入文件已变更，请重新分析抓包。");
   }
 });
 
 elements.wizardProjectName.addEventListener("change", () => {
   if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
     elements.importProjectName.value = elements.wizardProjectName.value.trim();
+    if (state.importAnalysis) {
+      refreshImportPreview().catch(() => {});
+    }
   }
 });
 
 elements.wizardPickFile.addEventListener("click", async () => {
   const selected = await desktopApi.chooseImportFile();
   if (selected) {
+    state.wizardAnalysis = null;
     elements.wizardInputPath.value = selected;
     elements.importInputPath.value = selected;
     if (!elements.wizardProjectName.value.trim() || elements.wizardProjectName.value === "my-first-bot") {
@@ -2022,6 +2207,7 @@ elements.wizardPickFile.addEventListener("click", async () => {
     if (!elements.importProjectName.value.trim() || elements.importProjectName.value === "desktop-import-bot") {
       elements.importProjectName.value = deriveProjectNameFromPath(selected);
     }
+    invalidateImportAnalysis("导入文件已变更，请重新分析抓包。");
   }
 });
 
@@ -2036,6 +2222,74 @@ elements.importGenerate.addEventListener("click", generateImport);
 elements.importQuickGenerate.addEventListener("click", generateImportQuick);
 elements.wizardAnalyze.addEventListener("click", analyzeWizard);
 elements.wizardGenerate.addEventListener("click", generateWizard);
+
+[
+  elements.manualProjectName,
+  elements.manualOutputDir,
+  elements.manualAccountFields,
+  elements.manualAuthMode,
+  elements.manualConcurrency,
+  elements.manualUseProxy,
+  elements.manualInterval,
+].forEach((element) => {
+  element.addEventListener("change", () => {
+    refreshManualPreview().catch(() => {});
+  });
+});
+
+elements.manualPresetList.addEventListener("change", () => {
+  refreshManualPreview().catch(() => {});
+});
+
+elements.manualPreviewRefresh.addEventListener("click", () => {
+  refreshManualPreview().catch(() => {});
+});
+
+elements.manualPreviewCopy.addEventListener("click", async () => {
+  await handleCopyAction(elements.manualPreviewCopy, state.manualPreviewText);
+});
+
+[
+  elements.importProjectName,
+  elements.importOutputDir,
+  elements.importUseProxy,
+  elements.importConcurrency,
+  elements.importInterval,
+].forEach((element) => {
+  element.addEventListener("change", () => {
+    if (state.importAnalysis) {
+      refreshImportPreview().catch(() => {});
+    }
+  });
+});
+
+[
+  elements.importSourceType,
+  elements.importInputPath,
+  elements.importAccountFields,
+  elements.importAuthMode,
+  elements.importLoginCandidate,
+  elements.importNonceCandidate,
+].forEach((element) => {
+  element.addEventListener("change", () => {
+    state.wizardAnalysis = null;
+    invalidateImportAnalysis("导入参数已变更，请重新分析抓包。");
+  });
+});
+
+elements.importGroupList.addEventListener("change", () => {
+  if (state.importAnalysis) {
+    refreshImportPreview().catch(() => {});
+  }
+});
+
+elements.importPreviewRefresh.addEventListener("click", () => {
+  refreshImportPreview().catch(() => {});
+});
+
+elements.importPreviewCopy.addEventListener("click", async () => {
+  await handleCopyAction(elements.importPreviewCopy, state.importPreviewText);
+});
 
 elements.manualOpenDir.addEventListener("click", async () => {
   if (state.manualLastOutputDir) {

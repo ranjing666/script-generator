@@ -188,6 +188,21 @@
         </div>
         <pre id="manualStatus" class="status"></pre>
         <div id="manualDiagnosis" class="diagnosis-list"></div>
+        <div class="preview-card">
+          <div class="preview-head">
+            <div>
+              <div class="hero-title">生成前配置预览</div>
+              <div class="preview-subtitle">
+                这里展示即将写入的 <code>project.config.json</code>。
+              </div>
+            </div>
+            <div class="preview-actions">
+              <button id="manualPreviewRefresh" type="button">刷新预览</button>
+              <button id="manualPreviewCopy" type="button" disabled>复制 JSON</button>
+            </div>
+          </div>
+          <pre id="manualPreview" class="config-preview is-empty">调整配置后，这里会显示即将生成的 project.config.json。</pre>
+        </div>
       </section>
 
       <section id="panelImport" class="panel hidden">
@@ -283,6 +298,21 @@
         <h3>分析结果</h3>
         <pre id="importSummary" class="status"></pre>
         <div id="importDiagnosis" class="diagnosis-list"></div>
+        <div class="preview-card">
+          <div class="preview-head">
+            <div>
+              <div class="hero-title">生成前配置预览</div>
+              <div class="preview-subtitle">
+                分析完成后，可以先检查最终 <code>project.config.json</code> 再生成。
+              </div>
+            </div>
+            <div class="preview-actions">
+              <button id="importPreviewRefresh" type="button">刷新预览</button>
+              <button id="importPreviewCopy" type="button" disabled>复制 JSON</button>
+            </div>
+          </div>
+          <pre id="importPreview" class="config-preview is-empty">分析完成后，这里会显示即将生成的 project.config.json。</pre>
+        </div>
 
         <div class="analysis-deck">
           <section class="analysis-card confidence-card">

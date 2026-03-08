@@ -84,8 +84,22 @@ function registerIpcHandlers() {
     });
   });
 
+  ipcMain.handle("project:preview-manual", async (_, options) => {
+    return desktopService.previewManualProject({
+      ...(options || {}),
+      defaultOutputRoot: getDefaultOutputRoot(),
+    });
+  });
+
   ipcMain.handle("project:generate-import", async (_, options) => {
     return desktopService.generateImportProject({
+      ...(options || {}),
+      defaultOutputRoot: getDefaultOutputRoot(),
+    });
+  });
+
+  ipcMain.handle("project:preview-import", async (_, options) => {
+    return desktopService.previewImportProject({
       ...(options || {}),
       defaultOutputRoot: getDefaultOutputRoot(),
     });
