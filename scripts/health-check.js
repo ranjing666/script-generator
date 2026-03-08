@@ -211,6 +211,41 @@ function runPackageNameFallbackCheck() {
   console.log("[PASS] package-name-fallback");
 }
 
+function runBatchSubmitPresetCheck() {
+  const result = desktopService.generateManualProject({
+    projectName: "health-batch-submit",
+    outputDir: path.join(ROOT, "generated", "health-batch-submit"),
+    accountSource: "accounts",
+    accountFields: ["email", "password"],
+    authMode: "request",
+    useProxy: false,
+    repeat: false,
+    intervalMinutes: 0,
+    concurrency: 1,
+    presetIds: ["api_batch_submit"],
+  });
+
+  const config = readJson(path.join(result.outputDir, "project.config.json"));
+  const runnerSource = fs.readFileSync(path.join(result.outputDir, "lib", "runner.js"), "utf8");
+  const rowsFilePath = path.join(result.outputDir, "data", "requestRows.txt");
+
+  assertStarterFiles(result.outputDir, "batch-submit");
+  assert(fs.existsSync(rowsFilePath), "batch-submit: missing data/requestRows.txt");
+  assert(
+    Array.isArray(config.tasks) && config.tasks.some((task) => task.type === "requestFromFile"),
+    "batch-submit: missing requestFromFile task"
+  );
+  assert(
+    runnerSource.includes("function readTaskRows(task)"),
+    "batch-submit: runner missing readTaskRows support"
+  );
+  assert(
+    runnerSource.includes("function executeRequestFromFileTask(task, context)"),
+    "batch-submit: runner missing executeRequestFromFileTask support"
+  );
+  console.log("[PASS] batch-submit-preset");
+}
+
 function expectThrows(fn, label, expectedText) {
   let thrown = false;
   try {
@@ -309,6 +344,7 @@ function main() {
   });
 
   runPackageNameFallbackCheck();
+  runBatchSubmitPresetCheck();
   runInvalidImportChecks();
   const desktopPresets = desktopService.listPresets("privateKeys");
   assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");

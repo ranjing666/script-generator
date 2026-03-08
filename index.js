@@ -68,6 +68,14 @@ async function askYesNo(rl, label, defaultValue = false) {
   return answer.toLowerCase().startsWith("y");
 }
 
+function buildDefaultPresetIndexes(options, preferredIds) {
+  return preferredIds
+    .map((presetId) => options.findIndex((option) => option.id === presetId))
+    .filter((index) => index >= 0)
+    .map((index) => String(index + 1))
+    .join(",");
+}
+
 function toSlug(value) {
   return value
     .toLowerCase()
@@ -246,7 +254,12 @@ async function runWizard(rl) {
   }
 
   const presets = getAvailablePresets({ accountSource: accountSource.id });
-  const defaultPresetIndexes = accountSource.id === "privateKeys" ? "1,5,6" : "1,2,4";
+  const defaultPresetIndexes = buildDefaultPresetIndexes(
+    presets,
+    accountSource.id === "privateKeys"
+      ? ["api_checkin", "contract_call", "native_transfer"]
+      : ["api_checkin", "api_heartbeat", "api_claim_list"]
+  );
   const selectedPresets = await chooseMany(
     rl,
     "选择要拼接的任务积木",

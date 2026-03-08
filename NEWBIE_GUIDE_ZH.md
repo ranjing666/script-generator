@@ -63,6 +63,7 @@
 - `privateKeys`：`data/privateKeys.txt`，每行一个私钥
 - `tokens`：`data/tokens.txt`，每行一个 token
 - `accounts`：`data/accounts.txt`，默认格式 `email|password`
+- 如果还有 `data/requestRows.txt`：说明你选了“批量提交行数据”积木，每行按 `字段1|字段2|字段3` 这类格式填写
 
 ## 5. `.env` 里的值去哪找（看这个）
 
