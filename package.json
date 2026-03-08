@@ -1,6 +1,6 @@
 {
   "name": "testnet-script-generator",
-  "version": "1.1.15",
+  "version": "1.1.16",
   "private": true,
   "description": "Interactive generator for modular testnet automation scripts",
   "author": "ranjing666",
@@ -10,7 +10,9 @@
     "create": "node index.js",
     "desktop": "electron .",
     "build:icon": "powershell -ExecutionPolicy Bypass -File scripts/generate-app-icon.ps1",
-    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:win": "npm run dist:win:installer && npm run dist:win:portable",
+    "dist:win:installer": "electron-builder --win nsis --x64 --publish never \"-c.win.artifactName=FengToolbox-${version}-Setup-${arch}.${ext}\"",
+    "dist:win:portable": "electron-builder --win portable --x64 --publish never \"-c.win.artifactName=FengToolbox-${version}-Portable-${arch}.${ext}\"",
     "check": "node scripts/health-check.js"
   },
   "license": "MIT",
@@ -22,6 +24,7 @@
     "appId": "com.ranjing.fengtoolbox",
     "productName": "风的工具箱",
     "asar": true,
+    "compression": "maximum",
     "directories": {
       "output": "release"
     },
@@ -38,6 +41,7 @@
     ],
     "win": {
       "icon": "desktop/assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker",
       "target": [
         {
           "target": "nsis",
@@ -45,15 +49,19 @@
             "x64"
           ]
         }
-      ],
-      "artifactName": "风的工具箱-${version}-Setup-${arch}.${ext}"
+      ]
     },
     "nsis": {
       "installerIcon": "desktop/assets/icon.ico",
       "uninstallerIcon": "desktop/assets/icon.ico",
       "installerHeaderIcon": "desktop/assets/icon.ico",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "风的工具箱",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
     }
   }
 }

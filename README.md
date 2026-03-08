@@ -12,7 +12,8 @@
 
 不想配 Node.js，直接下载 Windows 安装包：
 - Releases: `https://github.com/ranjing666/script-generator/releases`
-- 资产文件：`*Setup-x64.exe`
+- 标准安装版：`FengToolbox-*-Setup-x64.exe`
+- 免安装便携版：`FengToolbox-*-Portable-x64.exe`
 
 下载安装后，直接打开 `风的工具箱` 图形界面使用。
 
@@ -68,6 +69,12 @@ npm run desktop
 ## 构建安装包（Windows）
 ```bash
 npm run dist:win
+```
+
+如果只想单独构建一种：
+```bash
+npm run dist:win:installer
+npm run dist:win:portable
 ```
 
 ## 健康检查
