@@ -16,6 +16,7 @@
 - 免安装便携版：`FengToolbox-*-Portable-x64.exe`
 
 下载安装后，直接打开 `风的工具箱` 图形界面使用。
+如果只是 `main` 分支更新、还没打 tag，也可以去 GitHub Actions 下载本次构建产物。
 
 ## 这次升级重点（更简单）
 

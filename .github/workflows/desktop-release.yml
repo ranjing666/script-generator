@@ -3,6 +3,8 @@ name: Desktop Build
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "main"
     tags:
       - "v*"
 
@@ -27,22 +29,36 @@ jobs:
       - name: Run health checks
         run: npm run check
 
-      - name: Build Windows installer
+      - name: Build Windows packages
         shell: pwsh
         run: |
           if ("${{ github.ref }}" -like "refs/tags/v*") {
             $appVersion = "${{ github.ref_name }}".TrimStart("v")
             Write-Host "Tag build detected, override app version to: $appVersion"
-            npx electron-builder --win nsis --x64 --publish never "-c.extraMetadata.version=$appVersion"
+            npx electron-builder --win nsis --x64 --publish never "-c.extraMetadata.version=$appVersion" "-c.win.artifactName=FengToolbox-$appVersion-Setup-`${arch}.`${ext}"
+            npx electron-builder --win portable --x64 --publish never "-c.extraMetadata.version=$appVersion" "-c.win.artifactName=FengToolbox-$appVersion-Portable-`${arch}.`${ext}"
           } else {
             npm run dist:win
           }
 
-      - name: Upload installer artifact
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release -File |
+            Where-Object { $_.Extension -in ".exe", ".blockmap", ".yml" } |
+            Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash) *$([System.IO.Path]::GetFileName($_.Path))" } |
+            Set-Content -Path release/SHA256SUMS.txt -Encoding ascii
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: script-generator-win-installer
-          path: release/*.exe
+          name: script-generator-win-bundle
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+            release/SHA256SUMS.txt
           if-no-files-found: error
 
       - name: Publish GitHub Release assets
@@ -53,3 +69,4 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/latest*.yml
+            release/SHA256SUMS.txt
