@@ -1,14 +1,14 @@
 const path = require("path");
 const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
-const desktopService = require("../lib/desktop-service");
+const workflowService = require("../lib/desktop-service");
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1320,
-    height: 860,
-    minWidth: 1080,
-    minHeight: 720,
-    backgroundColor: "#0d1117",
+    width: 1500,
+    height: 920,
+    minWidth: 1180,
+    minHeight: 760,
+    backgroundColor: "#10131f",
     icon: path.join(__dirname, "assets", process.platform === "win32" ? "icon.ico" : "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -25,6 +25,10 @@ function getDefaultOutputRoot() {
   return path.join(app.getPath("documents"), "FengToolboxProjects");
 }
 
+function getProjectLibraryRoot() {
+  return path.join(app.getPath("userData"), "studio-projects");
+}
+
 function registerIpcHandlers() {
   ipcMain.handle("system:get-meta", async () => {
     return {
@@ -32,12 +36,17 @@ function registerIpcHandlers() {
       appVersion: app.getVersion(),
       platform: process.platform,
       defaultOutputRoot: getDefaultOutputRoot(),
+      projectLibraryRoot: getProjectLibraryRoot(),
     };
+  });
+
+  ipcMain.handle("workflow:get-catalog", async () => {
+    return workflowService.getCatalog();
   });
 
   ipcMain.handle("dialog:choose-import-file", async () => {
     const result = await dialog.showOpenDialog({
-      title: "选择导入文件",
+      title: "选择抓包文件",
       properties: ["openFile"],
       filters: [
         { name: "Import Files", extensions: ["har", "txt", "json"] },
@@ -48,6 +57,36 @@ function registerIpcHandlers() {
       return null;
     }
     return result.filePaths[0];
+  });
+
+  ipcMain.handle("dialog:choose-workflow-file", async () => {
+    const result = await dialog.showOpenDialog({
+      title: "选择流程文件",
+      properties: ["openFile"],
+      filters: [
+        { name: "Workflow Files", extensions: ["json"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("dialog:save-workflow-file", async (_, suggestedPath) => {
+    const result = await dialog.showSaveDialog({
+      title: "导出流程文件",
+      defaultPath: suggestedPath || path.join(getDefaultOutputRoot(), "workflow.fengflow.json"),
+      filters: [
+        { name: "Workflow Files", extensions: ["json"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+    return result.filePath;
   });
 
   ipcMain.handle("dialog:choose-output-dir", async () => {
@@ -61,48 +100,50 @@ function registerIpcHandlers() {
     return result.filePaths[0];
   });
 
-  ipcMain.handle("manual:list-presets", async (_, accountSource) => {
-    return desktopService.listPresets(accountSource);
+  ipcMain.handle("workflow:list-projects", async () => {
+    return workflowService.listProjects(getProjectLibraryRoot());
   });
 
-  ipcMain.handle("manual:get-defaults", async () => {
-    return desktopService.getManualDefaults();
+  ipcMain.handle("workflow:create-project", async (_, options) => {
+    return workflowService.createProject(getProjectLibraryRoot(), options || {});
   });
 
-  ipcMain.handle("import:analyze", async (_, options) => {
-    return desktopService.analyzeImport(options || {});
+  ipcMain.handle("workflow:load-project", async (_, projectId) => {
+    return workflowService.loadStoredProject(getProjectLibraryRoot(), projectId);
   });
 
-  ipcMain.handle("import:detect-source", async (_, inputPath) => {
-    return desktopService.detectImportSourceType(inputPath);
+  ipcMain.handle("workflow:save-project", async (_, payload) => {
+    return workflowService.saveStoredProject(
+      getProjectLibraryRoot(),
+      payload && payload.projectId ? payload.projectId : null,
+      payload && payload.workflow ? payload.workflow : {}
+    );
   });
 
-  ipcMain.handle("project:generate-manual", async (_, options) => {
-    return desktopService.generateManualProject({
-      ...(options || {}),
-      defaultOutputRoot: getDefaultOutputRoot(),
-    });
+  ipcMain.handle("workflow:import-source", async (_, options) => {
+    return workflowService.importSource(getProjectLibraryRoot(), options || {});
   });
 
-  ipcMain.handle("project:preview-manual", async (_, options) => {
-    return desktopService.previewManualProject({
-      ...(options || {}),
-      defaultOutputRoot: getDefaultOutputRoot(),
-    });
+  ipcMain.handle("workflow:export-file", async (_, payload) => {
+    return {
+      filePath: workflowService.exportFile(
+        payload && payload.workflow ? payload.workflow : {},
+        payload && payload.filePath ? payload.filePath : ""
+      ),
+    };
   });
 
-  ipcMain.handle("project:generate-import", async (_, options) => {
-    return desktopService.generateImportProject({
-      ...(options || {}),
-      defaultOutputRoot: getDefaultOutputRoot(),
-    });
+  ipcMain.handle("workflow:generate-project", async (_, payload) => {
+    return workflowService.generateProject(getProjectLibraryRoot(), payload || {});
   });
 
-  ipcMain.handle("project:preview-import", async (_, options) => {
-    return desktopService.previewImportProject({
-      ...(options || {}),
-      defaultOutputRoot: getDefaultOutputRoot(),
-    });
+  ipcMain.handle("workflow:preview-export", async (_, payload) => {
+    return workflowService.previewExport(
+      payload && payload.workflow ? payload.workflow : {},
+      {
+        outputDir: payload && payload.outputDir ? payload.outputDir : "",
+      }
+    );
   });
 
   ipcMain.handle("shell:open-path", async (_, targetPath) => {

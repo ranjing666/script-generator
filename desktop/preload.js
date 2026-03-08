@@ -8,35 +8,44 @@ contextBridge.exposeInMainWorld("desktopApi", {
   getMeta() {
     return invoke("system:get-meta");
   },
+  getWorkflowCatalog() {
+    return invoke("workflow:get-catalog");
+  },
   chooseImportFile() {
     return invoke("dialog:choose-import-file");
+  },
+  chooseWorkflowFile() {
+    return invoke("dialog:choose-workflow-file");
+  },
+  saveWorkflowFileDialog(suggestedPath) {
+    return invoke("dialog:save-workflow-file", suggestedPath);
   },
   chooseOutputDir() {
     return invoke("dialog:choose-output-dir");
   },
-  listManualPresets(accountSource) {
-    return invoke("manual:list-presets", accountSource);
+  listProjects() {
+    return invoke("workflow:list-projects");
   },
-  getManualDefaults() {
-    return invoke("manual:get-defaults");
+  createProject(options) {
+    return invoke("workflow:create-project", options);
   },
-  analyzeImport(options) {
-    return invoke("import:analyze", options);
+  loadProject(projectId) {
+    return invoke("workflow:load-project", projectId);
   },
-  detectImportSourceType(inputPath) {
-    return invoke("import:detect-source", inputPath);
+  saveProject(payload) {
+    return invoke("workflow:save-project", payload);
   },
-  generateManualProject(options) {
-    return invoke("project:generate-manual", options);
+  importSource(options) {
+    return invoke("workflow:import-source", options);
   },
-  previewManualProject(options) {
-    return invoke("project:preview-manual", options);
+  exportWorkflowFile(payload) {
+    return invoke("workflow:export-file", payload);
   },
-  generateImportProject(options) {
-    return invoke("project:generate-import", options);
+  generateProject(payload) {
+    return invoke("workflow:generate-project", payload);
   },
-  previewImportProject(options) {
-    return invoke("project:preview-import", options);
+  previewWorkflowExport(payload) {
+    return invoke("workflow:preview-export", payload);
   },
   openPath(targetPath) {
     return invoke("shell:open-path", targetPath);

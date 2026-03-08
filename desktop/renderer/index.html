@@ -3,405 +3,168 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>风的工具箱</title>
+    <title>风的工具箱 Workflow Studio</title>
     <link rel="icon" href="../assets/icon.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="bg-decor" aria-hidden="true">
-      <span class="orb orb-a"></span>
-      <span class="orb orb-b"></span>
-      <span class="orb orb-c"></span>
-      <span class="mesh"></span>
+    <div class="backdrop" aria-hidden="true">
+      <span class="glow glow-a"></span>
+      <span class="glow glow-b"></span>
+      <span class="grid"></span>
     </div>
 
     <header class="topbar">
-      <div class="brand-block">
-        <p class="brand-kicker">VISUAL SCRIPT BUILDER</p>
+      <div class="brand">
+        <p class="brand-eyebrow">WORKFLOW STUDIO</p>
         <h1>风的工具箱</h1>
         <p id="metaText">加载中...</p>
       </div>
-      <div class="topbar-right">
-        <label class="switch-row">
-          <input id="noviceMode" type="checkbox" checked />
-          小白模式（隐藏高级选项）
-        </label>
-        <div class="tabs">
-          <button id="tabWizard" class="tab-btn active">新手向导</button>
-          <button id="tabManual" class="tab-btn">手动拼接</button>
-          <button id="tabImport" class="tab-btn">抓包导入</button>
-        </div>
+      <div class="topbar-actions">
+        <span id="saveState" class="status-pill neutral">等待加载</span>
+        <button id="saveProjectBtn" type="button">保存到项目库</button>
+        <button id="previewBtn" type="button">刷新预览</button>
+        <button id="generateBtn" class="primary" type="button">生成项目</button>
       </div>
     </header>
 
-    <main>
-      <section id="panelWizard" class="panel">
-        <h2>新手向导（1-2-3）</h2>
-        <div class="intro-card">
-          <div class="intro-title-row">
-            <div class="intro-title">这个软件是干什么的？</div>
-            <button id="glossaryOpen" class="help-btn" type="button">看不懂词？术语翻译</button>
+    <main class="workspace">
+      <aside class="sidebar">
+        <section class="panel-card starter-card">
+          <div class="section-head">
+            <h2>新建流程</h2>
           </div>
-          <div class="intro-grid">
-            <div>
-              <strong>输入</strong>
-              <p>项目方网站抓包文件（HAR / Postman / cURL）。</p>
-            </div>
-            <div>
-              <strong>输出</strong>
-              <p>一个可运行的 Node.js 脚本项目（含配置、任务、数据模板）。</p>
-            </div>
-            <div>
-              <strong>适合</strong>
-              <p>测试网签到、领水、API 任务、链上交互自动化。</p>
-            </div>
-            <div>
-              <strong>不解决</strong>
-              <p>复杂验证码、强依赖浏览器指纹、前端加密逆向。</p>
-            </div>
-          </div>
-        </div>
-        <div class="wizard-steps">
-          <div class="step-card">
-            <div class="step-index">1</div>
-            <div class="step-content">
-              <div class="step-title">填项目名 + 选择抓包文件</div>
-              <div class="step-row">
-                <input id="wizardProjectName" type="text" value="my-first-bot" />
-                <div class="inline">
-                  <input id="wizardInputPath" type="text" />
-                  <button id="wizardPickFile" type="button">选择文件</button>
-                </div>
-                <button id="wizardCaptureHelp" class="help-btn" type="button">不会抓包？点这里</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div class="step-index">2</div>
-            <div class="step-content">
-              <div class="step-title">自动分析（不用配任何技术项）</div>
-              <div class="step-row">
-                <button id="wizardAnalyze" type="button">开始自动分析</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div class="step-index">3</div>
-            <div class="step-content">
-              <div class="step-title">一键生成项目并打开目录</div>
-              <div class="step-row">
-                <button id="wizardGenerate" class="primary" type="button">一键生成</button>
-                <button id="wizardOpenDir" type="button" disabled>打开输出目录</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h3>向导状态</h3>
-        <pre id="wizardStatus" class="status">先执行第 1 步，再点“开始自动分析”。</pre>
-        <div id="wizardDiagnosis" class="diagnosis-list"></div>
-
-        <h3>最近导入</h3>
-        <div id="recentImportList" class="recent-list"></div>
-      </section>
-
-      <section id="panelManual" class="panel hidden">
-        <h2>手动拼接模式</h2>
-
-        <div class="hero-card">
-          <div class="hero-title">模板市场（推荐）</div>
-          <p class="market-intro">
-            参考工作流模板市场思路整理。先看“最适合什么项目”，再决定一键生成哪个模板。
+          <button id="createBlankBtn" type="button">空白流程</button>
+          <button id="createImportBtn" class="primary" type="button">从抓包开始</button>
+          <button id="importWorkflowBtn" type="button">导入流程文件</button>
+          <label>
+            模板起点
+            <select id="templateSelect"></select>
+          </label>
+          <button id="createTemplateBtn" type="button">从模板开始</button>
+          <p class="helper-copy">
+            现在只有一个主工作台。先创建流程，再在中间区域按五段流程补齐配置。
           </p>
-          <div class="hero-row">
-            <select id="manualTemplate"></select>
-            <button id="manualApplyTemplate" type="button">套用模板</button>
-            <button id="manualQuickGenerate" class="primary" type="button">
-              一键生成（小白）
-            </button>
+        </section>
+
+        <section class="panel-card library-card">
+          <div class="section-head">
+            <h2>项目库</h2>
+            <button id="refreshProjectsBtn" class="ghost-btn" type="button">刷新</button>
           </div>
-          <div class="template-toolbar">
-            <input
-              id="manualTemplateSearch"
-              type="text"
-              placeholder="搜关键字：签到 / 钱包 / token / 链上"
-            />
-            <div id="manualTemplateFilters" class="chip-row"></div>
+          <div id="projectList" class="project-list"></div>
+        </section>
+      </aside>
+
+      <section class="studio">
+        <section class="panel-card">
+          <div class="section-head">
+            <h2><span class="section-index">1</span>项目基础信息</h2>
+            <span id="projectMetaBadge" class="meta-pill">未加载</span>
           </div>
-          <div id="manualTemplateGallery" class="template-gallery"></div>
-        </div>
-
-        <div class="grid">
-          <label>
-            项目名
-            <input id="manualProjectName" type="text" value="desktop-manual-bot" />
-          </label>
-          <label class="advanced-only">
-            输出目录
-            <div class="inline">
-              <input id="manualOutputDir" type="text" />
-              <button id="manualPickOutput" type="button">选择</button>
-            </div>
-          </label>
-          <label class="advanced-only">
-            账号来源
-            <select id="manualAccountSource">
-              <option value="privateKeys">privateKeys</option>
-              <option value="tokens">tokens</option>
-              <option value="accounts">accounts</option>
-            </select>
-          </label>
-          <label class="advanced-only">
-            账号字段（accounts 模式）
-            <input id="manualAccountFields" type="text" placeholder="email,password" />
-          </label>
-          <label class="advanced-only">
-            登录模式
-            <select id="manualAuthMode"></select>
-          </label>
-          <label class="advanced-only">
-            并发账号数
-            <input id="manualConcurrency" type="number" min="1" value="3" />
-          </label>
-          <label class="checkbox-line advanced-only">
-            <input id="manualUseProxy" type="checkbox" />
-            使用代理文件 data/proxies.txt
-          </label>
-          <label class="checkbox-line advanced-only">
-            <input id="manualRepeat" type="checkbox" />
-            循环执行
-          </label>
-          <label class="advanced-only">
-            循环间隔（分钟）
-            <input id="manualInterval" type="number" min="1" value="60" />
-          </label>
-        </div>
-
-        <h3 class="advanced-only">任务积木（高级可自选）</h3>
-        <div id="manualPresetList" class="checklist advanced-only"></div>
-
-        <div class="actions">
-          <button id="manualGenerate" class="advanced-only">按当前配置生成</button>
-          <button id="manualOpenDir" disabled>打开输出目录</button>
-        </div>
-        <pre id="manualStatus" class="status"></pre>
-        <div id="manualDiagnosis" class="diagnosis-list"></div>
-        <div class="preview-card">
-          <div class="preview-head">
-            <div>
-              <div class="hero-title">生成前配置预览</div>
-              <div class="preview-subtitle">
-                这里展示即将写入的 <code>project.config.json</code>。
+          <div class="field-grid">
+            <label>
+              项目名
+              <input id="projectNameInput" type="text" />
+            </label>
+            <label>
+              输出目录
+              <div class="inline-row">
+                <input id="outputDirInput" type="text" />
+                <button id="chooseOutputDirBtn" type="button">选择</button>
               </div>
-            </div>
-            <div class="preview-actions">
-              <button id="manualPreviewRefresh" type="button">刷新预览</button>
-              <button id="manualPreviewCopy" type="button" disabled>复制 JSON</button>
+            </label>
+            <label>
+              并发账号数
+              <input id="concurrencyInput" type="number" min="1" />
+            </label>
+            <label class="toggle-row">
+              <span>使用代理文件</span>
+              <input id="useProxyInput" type="checkbox" />
+            </label>
+            <label class="toggle-row">
+              <span>循环执行</span>
+              <input id="repeatInput" type="checkbox" />
+            </label>
+            <label>
+              循环间隔（分钟）
+              <input id="intervalInput" type="number" min="1" />
+            </label>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <div class="section-head">
+            <h2><span class="section-index">2</span>来源材料</h2>
+          </div>
+          <div id="sourcePanel" class="source-panel"></div>
+        </section>
+
+        <section class="panel-card">
+          <div class="section-head">
+            <h2><span class="section-index">3</span>账号与登录</h2>
+          </div>
+          <div class="field-grid">
+            <label>
+              账号来源
+              <select id="accountSourceSelect"></select>
+            </label>
+            <label>
+              账号字段（accounts 模式）
+              <input id="accountFieldsInput" type="text" placeholder="email,password" />
+            </label>
+            <label>
+              登录方式
+              <select id="authModeSelect"></select>
+            </label>
+          </div>
+          <div id="authEditor" class="auth-editor"></div>
+        </section>
+
+        <section class="panel-card">
+          <div class="section-head">
+            <h2><span class="section-index">4</span>步骤卡片流</h2>
+            <div class="inline-actions">
+              <select id="stepTypeSelect"></select>
+              <button id="addStepBtn" type="button">新增步骤</button>
             </div>
           </div>
-          <pre id="manualPreview" class="config-preview is-empty">调整配置后，这里会显示即将生成的 project.config.json。</pre>
-        </div>
+          <div class="helper-copy">
+            步骤严格按顺序执行。你可以启用、禁用、排序、复制、删除，并修改每个步骤的基础字段。
+          </div>
+          <div id="stepList" class="step-list"></div>
+        </section>
       </section>
 
-      <section id="panelImport" class="panel hidden">
-        <h2>抓包导入模式</h2>
-
-        <div class="hero-card">
-          <div class="hero-title">一键导入（推荐）</div>
-          <div class="hero-row">
-            <button id="importQuickGenerate" class="primary" type="button">
-              自动识别 + 一键生成
-            </button>
-            <button id="importDetect" type="button">只识别抓包类型</button>
+      <aside class="inspector">
+        <section class="panel-card">
+          <div class="section-head">
+            <h2><span class="section-index">5</span>诊断</h2>
+            <span id="diagnosticSummary" class="status-pill neutral">0 阻塞</span>
           </div>
-        </div>
+          <div id="diagnosticsList" class="diagnostics-list"></div>
+        </section>
 
-        <div class="grid">
-          <label>
-            项目名
-            <input id="importProjectName" type="text" value="desktop-import-bot" />
-          </label>
-          <label>
-            抓包类型
-            <select id="importSourceType">
-              <option value="auto">auto（自动识别）</option>
-              <option value="har">har</option>
-              <option value="postman">postman</option>
-              <option value="curl">curl</option>
-            </select>
-          </label>
-          <label>
-            导入文件路径
-            <div class="inline">
-              <input id="importInputPath" type="text" />
-              <button id="importPickFile" type="button">选择</button>
-            </div>
-            <button id="importCaptureHelp" class="help-btn" type="button">不会抓包？点这里</button>
-          </label>
-          <label class="advanced-only">
-            输出目录
-            <div class="inline">
-              <input id="importOutputDir" type="text" />
-              <button id="importPickOutput" type="button">选择</button>
-            </div>
-          </label>
-          <label class="advanced-only">
-            账号来源
-            <select id="importAccountSource">
-              <option value="privateKeys">privateKeys</option>
-              <option value="tokens">tokens</option>
-              <option value="accounts">accounts</option>
-            </select>
-          </label>
-          <label class="advanced-only">
-            账号字段（accounts 模式）
-            <input id="importAccountFields" type="text" placeholder="email,password" />
-          </label>
-          <label class="advanced-only">
-            登录模式
-            <select id="importAuthMode"></select>
-          </label>
-          <label class="advanced-only">
-            登录请求（auth_login）
-            <select id="importLoginCandidate"></select>
-          </label>
-          <label class="advanced-only">
-            nonce 请求（auth_nonce）
-            <select id="importNonceCandidate"></select>
-          </label>
-          <label class="advanced-only">
-            并发账号数
-            <input id="importConcurrency" type="number" min="1" value="3" />
-          </label>
-          <label class="checkbox-line advanced-only">
-            <input id="importUseProxy" type="checkbox" />
-            使用代理文件 data/proxies.txt
-          </label>
-          <label class="checkbox-line advanced-only">
-            <input id="importRepeat" type="checkbox" />
-            循环执行
-          </label>
-          <label class="advanced-only">
-            循环间隔（分钟）
-            <input id="importInterval" type="number" min="1" value="60" />
-          </label>
-        </div>
-
-        <div class="actions">
-          <button id="importAnalyze" class="advanced-only">分析抓包</button>
-          <button id="importGenerate" class="advanced-only">按当前配置生成</button>
-          <button id="importOpenDir" disabled>打开输出目录</button>
-        </div>
-
-        <h3>分析结果</h3>
-        <pre id="importSummary" class="status"></pre>
-        <div id="importDiagnosis" class="diagnosis-list"></div>
-        <div class="preview-card">
-          <div class="preview-head">
-            <div>
-              <div class="hero-title">生成前配置预览</div>
-              <div class="preview-subtitle">
-                分析完成后，可以先检查最终 <code>project.config.json</code> 再生成。
-              </div>
-            </div>
-            <div class="preview-actions">
-              <button id="importPreviewRefresh" type="button">刷新预览</button>
-              <button id="importPreviewCopy" type="button" disabled>复制 JSON</button>
-            </div>
+        <section class="panel-card">
+          <div class="section-head">
+            <h2>预览与导出</h2>
           </div>
-          <pre id="importPreview" class="config-preview is-empty">分析完成后，这里会显示即将生成的 project.config.json。</pre>
-        </div>
+          <div class="preview-actions">
+            <button id="copyPreviewBtn" type="button">复制预览 JSON</button>
+            <button id="exportWorkflowBtn" type="button">导出 .fengflow.json</button>
+            <button id="openOutputBtn" type="button">打开输出目录</button>
+          </div>
+          <pre id="previewJson" class="code-view">等待加载流程…</pre>
+        </section>
 
-        <div class="analysis-deck">
-          <section class="analysis-card confidence-card">
-            <div class="hero-title">导入可信度</div>
-            <div class="confidence-box">
-              <div class="confidence-head">
-                <span id="importConfidenceBadge" class="confidence-badge is-empty">等待分析</span>
-                <strong id="importConfidenceScore" class="confidence-score">--</strong>
-              </div>
-              <div class="confidence-meter">
-                <span id="importConfidenceMeter"></span>
-              </div>
-              <div id="importConfidenceText" class="confidence-text">
-                分析后，这里会告诉你这份抓包是否适合直接生成。
-              </div>
-              <div id="importConfidenceNotes" class="confidence-notes"></div>
-            </div>
-          </section>
-          <section class="analysis-card">
-            <div class="hero-title">导入支持范围</div>
-            <div id="importCoverageList" class="coverage-list"></div>
-          </section>
-          <section class="analysis-card">
-            <div class="hero-title">系统建议</div>
-            <div id="importSuggestionList" class="advice-list"></div>
-          </section>
-          <section class="analysis-card">
-            <div class="hero-title">识别到的请求预览（可复制代码）</div>
-            <div id="importCandidateList" class="candidate-list"></div>
-          </section>
-        </div>
-
-        <h3 class="advanced-only">任务组（高级模式可自选）</h3>
-        <div id="importGroupList" class="checklist advanced-only"></div>
-      </section>
+        <section class="panel-card">
+          <div class="section-head">
+            <h2>执行结果</h2>
+          </div>
+          <pre id="resultStatus" class="status-box">等待操作。</pre>
+        </section>
+      </aside>
     </main>
-
-    <div id="onboardingModal" class="onboarding hidden">
-      <div class="onboarding-card">
-        <h2>欢迎使用 风的工具箱</h2>
-        <p>这是一个“抓包转脚本”的生成器，不是直接跑空投机器人。</p>
-        <ol>
-          <li>准备一个抓包文件（HAR 优先）。</li>
-          <li>在新手向导里点“开始自动分析”。</li>
-          <li>点“一键生成”，按状态区命令运行项目。</li>
-        </ol>
-        <div class="onboarding-actions">
-          <button id="onboardingClose" class="primary" type="button">我知道了，开始使用</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="captureGuideModal" class="onboarding hidden">
-      <div class="onboarding-card">
-        <h2>不会抓包？按这个流程做（HAR 推荐）</h2>
-        <ol>
-          <li>打开目标网站，按 <code>F12</code> 打开开发者工具。</li>
-          <li>切到 <code>Network / 网络</code>，勾选 <code>Preserve log / 保留日志</code>。</li>
-          <li>点清空（垃圾桶图标），从“登录”开始完整操作一遍任务。</li>
-          <li>请求列表空白处右键，点 <code>Save all as HAR with content</code>。</li>
-          <li>保存得到 <code>.har</code> 文件，然后回软件里选择这个文件。</li>
-        </ol>
-        <p class="capture-tip">
-          提示：HAR 可能包含 token/cookie，请勿发给他人，也不要上传公开仓库。
-        </p>
-        <div class="onboarding-actions">
-          <button id="captureGuideClose" class="primary" type="button">我会了，继续</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="glossaryModal" class="onboarding hidden">
-      <div class="onboarding-card">
-        <h2>术语翻译（人话版）</h2>
-        <ul class="glossary-list">
-          <li><strong>抓包文件(HAR)</strong>：你在网站上操作时，浏览器发出的接口记录。</li>
-          <li><strong>Token</strong>：网站给你的“登录凭证”，有它就能继续请求接口。</li>
-          <li><strong>私钥</strong>：钱包控制权，必须保密，泄露就可能丢资产。</li>
-          <li><strong>RPC_URL</strong>：连接区块链节点的网址，链上任务必须有。</li>
-          <li><strong>Nonce</strong>：一次性随机串，签名登录前常会先拿它。</li>
-          <li><strong>Claim</strong>：领取奖励。</li>
-          <li><strong>Faucet</strong>：测试网领币。</li>
-          <li><strong>429</strong>：请求太频繁，被网站限流了。</li>
-        </ul>
-        <div class="onboarding-actions">
-          <button id="glossaryClose" class="primary" type="button">我明白了</button>
-        </div>
-      </div>
-    </div>
 
     <script src="./app.js"></script>
   </body>

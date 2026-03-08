@@ -1,19 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
-const {
-  loadImportCandidates,
-  inferAccountSource,
-  inferAccountFields,
-  inferAuthStrategy,
-  buildImportedAuth,
-  buildImportedTaskGroups,
-  finalizeImportedPlan,
-} = require("../lib/importer");
-const { createProject } = require("../lib/generator");
-const desktopService = require("../lib/desktop-service");
+const workflow = require("../lib/workflow");
+const workflowService = require("../lib/workflow/service");
 
 const ROOT = path.resolve(__dirname, "..");
+const HEALTH_ROOT = path.join(ROOT, "generated", "health-v2");
 
 function runNodeCheck(filePath) {
   execFileSync(process.execPath, ["-c", filePath], {
@@ -32,436 +24,266 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function assertDesktopIconAssets() {
-  const iconPngPath = path.join(ROOT, "desktop", "assets", "icon.png");
-  const iconIcoPath = path.join(ROOT, "desktop", "assets", "icon.ico");
-
-  [iconPngPath, iconIcoPath].forEach((filePath) => {
-    assert(fs.existsSync(filePath), `missing desktop icon asset: ${path.basename(filePath)}`);
-    const size = fs.statSync(filePath).size;
-    assert(size > 0, `empty desktop icon asset: ${path.basename(filePath)}`);
-  });
-
-  console.log("[PASS] desktop-icon-assets");
+function resetDir(dirPath) {
+  fs.rmSync(dirPath, { recursive: true, force: true });
+  fs.mkdirSync(dirPath, { recursive: true });
 }
 
 function assertStarterFiles(outputDir, label) {
-  const envExamplePath = path.join(outputDir, ".env.example");
-  const envPath = path.join(outputDir, ".env");
-  const starterGuidePath = path.join(outputDir, "00-先看这里-零基础说明.md");
-  const doctorHelperPath = path.join(outputDir, "0-双击-运行前检查.bat");
-  const installScriptPath = path.join(outputDir, "1-双击-安装依赖.bat");
-  const startScriptPath = path.join(outputDir, "2-双击-启动脚本.bat");
-  const doctorScriptPath = path.join(outputDir, "doctor.js");
-
-  [envExamplePath, envPath, starterGuidePath, doctorHelperPath, installScriptPath, startScriptPath, doctorScriptPath].forEach((filePath) => {
-    assert(fs.existsSync(filePath), `${label}: missing generated helper file ${path.basename(filePath)}`);
+  [
+    "project.config.json",
+    "doctor.js",
+    "main.js",
+    "lib/runner.js",
+    "workflow.fengflow.json",
+    "0-双击-运行前检查.bat",
+    "1-双击-安装依赖.bat",
+    "2-双击-启动脚本.bat",
+  ].forEach((fileName) => {
+    const targetPath = path.join(outputDir, fileName);
+    assert(fs.existsSync(targetPath), `${label}: missing ${fileName}`);
   });
 
-  const envExampleText = fs.readFileSync(envExamplePath, "utf8");
-  const envText = fs.readFileSync(envPath, "utf8");
-  const starterGuideText = fs.readFileSync(starterGuidePath, "utf8");
-  const doctorHelperText = fs.readFileSync(doctorHelperPath, "utf8");
-  const installScriptText = fs.readFileSync(installScriptPath, "utf8");
-  const startScriptText = fs.readFileSync(startScriptPath, "utf8");
-  const doctorScriptText = fs.readFileSync(doctorScriptPath, "utf8");
-
-  assert(envText === envExampleText, `${label}: .env should match .env.example on generation`);
-  assert(starterGuideText.includes("0-双击-运行前检查.bat"), `${label}: starter guide missing doctor helper`);
-  assert(starterGuideText.includes("1-双击-安装依赖.bat"), `${label}: starter guide missing install helper`);
-  assert(doctorHelperText.includes("node doctor.js"), `${label}: doctor helper missing doctor runner`);
-  assert(installScriptText.includes("npm install"), `${label}: install helper missing npm install`);
-  assert(installScriptText.includes("node doctor.js"), `${label}: install helper missing doctor check`);
-  assert(startScriptText.includes("node doctor.js"), `${label}: start helper missing doctor check`);
-  assert(startScriptText.includes("node main.js"), `${label}: start helper missing node main.js`);
-  assert(doctorScriptText.includes("运行前检查报告.txt"), `${label}: doctor script missing report output`);
-  runNodeCheck(doctorScriptPath);
+  runNodeCheck(path.join(outputDir, "doctor.js"));
+  runNodeCheck(path.join(outputDir, "lib", "runner.js"));
+  const exportedWorkflow = readJson(path.join(outputDir, "workflow.fengflow.json"));
+  assert(exportedWorkflow.meta && exportedWorkflow.project, `${label}: invalid workflow.fengflow.json`);
   console.log(`[PASS] ${label}-starter-files`);
 }
 
-function runImportSmokeCase({ label, sourceType, fileName, expect }) {
-  const inputPath = path.join(ROOT, "examples", fileName);
-  const candidates = loadImportCandidates(sourceType, inputPath);
-  assert(candidates.length > 0, `${label}: no candidates parsed`);
+function assertGeneratedProject(outputDir, label) {
+  const config = readJson(path.join(outputDir, "project.config.json"));
+  assert(config.project && config.accounts, `${label}: project.config.json missing project/accounts`);
+  assert(Array.isArray(config.tasks), `${label}: project.config.json missing tasks array`);
+  assertStarterFiles(outputDir, label);
+  console.log(`[PASS] ${label}-generated-project`);
+}
 
-  const accountSource = inferAccountSource(candidates);
-  const accountFields =
-    accountSource === "accounts"
-      ? inferAccountFields(candidates.find((candidate) => candidate.kind === "auth_login"))
-      : [];
-  const inferredAuthMode = inferAuthStrategy(candidates, accountSource);
-
-  let authMode = inferredAuthMode;
-  let nonceCandidate = null;
-  let loginCandidate = null;
-
-  if (authMode === "request") {
-    loginCandidate = candidates.find((candidate) => candidate.kind === "auth_login") || null;
-    if (!loginCandidate) {
-      authMode = "none";
-    }
-  } else if (authMode === "evm_sign") {
-    nonceCandidate = candidates.find((candidate) => candidate.kind === "auth_nonce") || null;
-    loginCandidate = candidates.find((candidate) => candidate.kind === "auth_login") || null;
-    if (!nonceCandidate || !loginCandidate) {
-      authMode = "none";
-    }
-  }
-
-  const auth = buildImportedAuth({
-    authMode,
-    loginCandidate,
-    nonceCandidate,
-    accountSource,
-    accountFields,
+function runSyntaxChecks() {
+  [
+    "index.js",
+    "lib/generator.js",
+    "lib/importer.js",
+    "lib/presets.js",
+    "lib/desktop-service.js",
+    "lib/workflow/model.js",
+    "lib/workflow/templates.js",
+    "lib/workflow/diagnostics.js",
+    "lib/workflow/import-source.js",
+    "lib/workflow/exporter.js",
+    "lib/workflow/projects.js",
+    "lib/workflow/service.js",
+    "desktop/main.js",
+    "desktop/preload.js",
+    "desktop/renderer/app.js",
+  ].forEach((relativePath) => {
+    runNodeCheck(path.join(ROOT, relativePath));
   });
-  const taskGroups = buildImportedTaskGroups({
-    candidates,
-    authMode,
-    loginCandidate,
-    nonceCandidate,
-    accountSource,
-    accountFields,
-  });
-  const finalized = finalizeImportedPlan({
-    auth,
-    taskGroups,
-    loginCandidate,
-    candidates,
-  });
+  console.log("[PASS] syntax-check");
+}
 
-  const outputDir = path.join(ROOT, "generated", `health-${label}`);
-  createProject({
-    projectName: `health-${label}`,
-    outputDir,
-    accountSource,
-    accountFields,
-    useProxy: false,
-    repeat: false,
-    intervalMinutes: 0,
-    concurrency: 2,
-    auth: finalized.auth,
-    authMode,
-    selectedPresets: [],
-    customTasks: finalized.taskGroups.map((group) => group.task),
-    meta: {
-      healthCheck: true,
-      importSource: sourceType,
+function runCatalogCheck() {
+  const catalog = workflowService.getCatalog();
+  assert(Array.isArray(catalog.templates) && catalog.templates.length > 0, "catalog: missing templates");
+  assert(Array.isArray(catalog.stepCatalog) && catalog.stepCatalog.length > 0, "catalog: missing step catalog");
+  console.log("[PASS] workflow-catalog");
+}
+
+function runProjectLibraryCheck() {
+  const libraryRoot = path.join(HEALTH_ROOT, "library");
+  resetDir(libraryRoot);
+
+  const created = workflowService.createProject(libraryRoot, {
+    starter: { type: "blank" },
+    projectName: "blank-health",
+  });
+  assert(created.summary.sourceKind === "blank", "library: blank project sourceKind mismatch");
+
+  created.workflow.project.name = "blank-health-renamed";
+  created.workflow.account.source = "accounts";
+  created.workflow.account.fields = ["email", "password"];
+  created.workflow.auth.mode = "request";
+  created.workflow.auth.enabled = true;
+  created.workflow.auth.config = {
+    type: "request",
+    request: {
+      method: "POST",
+      url: "https://example.com/api/login",
+      headers: { "Content-Type": "application/json" },
+      body: { email: "{{account.email}}", password: "{{account.password}}" },
+    },
+    extractTokenPath: "data.token",
+  };
+  created.workflow.steps.push({
+    id: "step_ping",
+    type: "request",
+    title: "Ping",
+    enabled: true,
+    source: "manual",
+    notes: [],
+    metadata: {},
+    config: {
+      type: "request",
+      name: "ping",
+      method: "GET",
+      url: "https://example.com/ping",
+      headers: {},
     },
   });
 
-  const config = readJson(path.join(outputDir, "project.config.json"));
-  const runnerSource = fs.readFileSync(path.join(outputDir, "lib", "runner.js"), "utf8");
-  runNodeCheck(path.join(outputDir, "lib", "runner.js"));
-  assertStarterFiles(outputDir, label);
+  const saved = workflowService.saveStoredProject(
+    libraryRoot,
+    created.summary.id,
+    created.workflow
+  );
+  const loaded = workflowService.loadStoredProject(libraryRoot, created.summary.id);
+  const listed = workflowService.listProjects(libraryRoot);
+
+  assert(saved.summary.name === "blank-health-renamed", "library: save summary name mismatch");
+  assert(loaded.workflow.project.name === "blank-health-renamed", "library: load name mismatch");
+  assert(Array.isArray(listed) && listed.length === 1, "library: list mismatch");
+  console.log("[PASS] workflow-library");
+}
+
+function runTemplateFlowCheck() {
+  const libraryRoot = path.join(HEALTH_ROOT, "template-library");
+  const outputDir = path.join(HEALTH_ROOT, "template-output");
+  resetDir(libraryRoot);
+  resetDir(outputDir);
+
+  const created = workflowService.createProject(libraryRoot, {
+    starter: { type: "template", templateId: "easy_batch_submit" },
+  });
+  const preview = workflowService.previewExport(created.workflow, { outputDir });
+  assert(preview.canGenerate, "template: preview should be generatable");
   assert(
-    runnerSource.includes("/^\\d+$/.test(tokenValue)"),
-    `${label}: splitPath 数组下标正则转义异常`
+    preview.projectConfig.tasks.some((task) => task.type === "requestFromFile"),
+    "template: missing requestFromFile task"
   );
 
-  if (expect.accountSource) {
+  const generated = workflowService.generateProject(libraryRoot, {
+    projectId: created.summary.id,
+    workflow: created.workflow,
+    outputDir,
+  });
+  assertGeneratedProject(generated.outputDir, "template");
+  console.log("[PASS] template-flow");
+}
+
+function runImportFlowCheck(label, sourceType, fileName, expectation) {
+  const libraryRoot = path.join(HEALTH_ROOT, `${label}-library`);
+  const outputDir = path.join(HEALTH_ROOT, `${label}-output`);
+  resetDir(libraryRoot);
+  resetDir(outputDir);
+
+  const imported = workflowService.importSource(libraryRoot, {
+    sourceType,
+    inputPath: path.join(ROOT, "examples", fileName),
+    projectName: `${label}-workflow`,
+    concurrency: 1,
+    repeat: false,
+    intervalMinutes: 60,
+    useProxy: false,
+  });
+  assert(imported.summary.sourceKind === "import", `${label}: sourceKind mismatch`);
+  const preview = workflowService.previewExport(imported.workflow, { outputDir });
+  assert(preview.canGenerate, `${label}: preview should be generatable`);
+
+  if (expectation.authMode) {
+    assert(imported.workflow.auth.mode === expectation.authMode, `${label}: authMode mismatch`);
+  }
+
+  if (expectation.mustHaveTaskType) {
     assert(
-      config.accounts && config.accounts.source === expect.accountSource,
-      `${label}: unexpected accountSource ${config.accounts && config.accounts.source}`
+      imported.workflow.steps.some((step) => step.type === expectation.mustHaveTaskType),
+      `${label}: missing step type ${expectation.mustHaveTaskType}`
     );
   }
 
-  if (expect.authType) {
-    assert(config.auth && config.auth.type === expect.authType, `${label}: unexpected auth type`);
-  }
-
-  if (expect.mustContainTaskType) {
-    const hasType = (config.tasks || []).some((task) => task.type === expect.mustContainTaskType);
-    assert(hasType, `${label}: expected task type ${expect.mustContainTaskType}`);
-  }
-
-  if (expect.mustContainEnvKey) {
-    const envText = fs.readFileSync(path.join(outputDir, ".env.example"), "utf8");
-    assert(envText.includes(`${expect.mustContainEnvKey}=`), `${label}: missing env key ${expect.mustContainEnvKey}`);
-  }
-
-  if (expect.mustHaveSiwe) {
-    assert(config.auth && config.auth.siwe, `${label}: missing auth.siwe`);
-    assert(config.auth.messageTemplate, `${label}: missing messageTemplate`);
-  }
-
-  console.log(`[PASS] ${label}`);
-}
-
-function runPackageNameFallbackCheck() {
-  const outputDir = path.join(ROOT, "generated", "health-package-name");
-  createProject({
-    projectName: "中文项目",
+  const generated = workflowService.generateProject(libraryRoot, {
+    projectId: imported.summary.id,
+    workflow: imported.workflow,
     outputDir,
-    accountSource: "tokens",
-    accountFields: [],
-    useProxy: false,
-    repeat: false,
-    intervalMinutes: 0,
-    concurrency: 1,
-    auth: {
-      type: "account_token",
-      tokenField: "token",
-    },
-    authMode: "account_token",
-    selectedPresets: [],
-    customTasks: [
-      {
-        type: "request",
-        name: "ping",
-        method: "GET",
-        url: "https://example.com/ping",
-      },
-    ],
   });
-
-  const packageJson = readJson(path.join(outputDir, "package.json"));
-  assertStarterFiles(outputDir, "package-name-fallback");
-  assert(packageJson.name === "generated-testnet-bot", "package name fallback failed");
-  console.log("[PASS] package-name-fallback");
+  assertGeneratedProject(generated.outputDir, label);
+  console.log(`[PASS] ${label}-flow`);
 }
 
-function runBatchSubmitPresetCheck() {
-  const result = desktopService.generateManualProject({
-    projectName: "health-batch-submit",
-    outputDir: path.join(ROOT, "generated", "health-batch-submit"),
-    accountSource: "accounts",
-    accountFields: ["email", "password"],
-    authMode: "request",
-    useProxy: false,
-    repeat: false,
-    intervalMinutes: 0,
-    concurrency: 1,
-    presetIds: ["api_batch_submit"],
+function runWorkflowFileRoundTripCheck() {
+  const libraryRoot = path.join(HEALTH_ROOT, "workflow-file-library");
+  const exportDir = path.join(HEALTH_ROOT, "workflow-file-export");
+  resetDir(libraryRoot);
+  resetDir(exportDir);
+
+  const workflowDoc = workflow.createWorkflowFromTemplate("easy_api_accounts");
+  const filePath = path.join(exportDir, "sample.fengflow.json");
+  workflow.exportWorkflowFile(workflowDoc, filePath);
+  assert(fs.existsSync(filePath), "workflow-file: export file missing");
+
+  const imported = workflowService.createProject(libraryRoot, {
+    starter: { type: "workflow-file", filePath },
   });
-
-  const config = readJson(path.join(result.outputDir, "project.config.json"));
-  const runnerSource = fs.readFileSync(path.join(result.outputDir, "lib", "runner.js"), "utf8");
-  const rowsFilePath = path.join(result.outputDir, "data", "requestRows.txt");
-
-  assertStarterFiles(result.outputDir, "batch-submit");
-  assert(fs.existsSync(rowsFilePath), "batch-submit: missing data/requestRows.txt");
-  assert(
-    Array.isArray(config.tasks) && config.tasks.some((task) => task.type === "requestFromFile"),
-    "batch-submit: missing requestFromFile task"
-  );
-  assert(
-    runnerSource.includes("function readTaskRows(task)"),
-    "batch-submit: runner missing readTaskRows support"
-  );
-  assert(
-    runnerSource.includes("function executeRequestFromFileTask(task, context)"),
-    "batch-submit: runner missing executeRequestFromFileTask support"
-  );
-  console.log("[PASS] batch-submit-preset");
+  assert(imported.workflow.meta.sourceMaterial.kind === "workflow-file", "workflow-file: sourceMaterial mismatch");
+  console.log("[PASS] workflow-file-roundtrip");
 }
 
-function runPreviewChecks() {
-  const manualPreview = desktopService.previewManualProject({
-    projectName: "health-preview-manual",
-    outputDir: path.join(ROOT, "generated", "health-preview-manual"),
-    accountSource: "accounts",
-    accountFields: ["email", "password"],
-    authMode: "request",
-    useProxy: false,
-    repeat: false,
-    intervalMinutes: 0,
-    concurrency: 1,
-    presetIds: ["api_batch_submit"],
-  });
+function runCliExportCheck() {
+  const cliRoot = path.join(HEALTH_ROOT, "cli");
+  const flowPath = path.join(cliRoot, "cli-sample.fengflow.json");
+  const outputDir = path.join(cliRoot, "output");
+  resetDir(cliRoot);
+  resetDir(outputDir);
 
-  assert(
-    manualPreview.projectConfig
-      && Array.isArray(manualPreview.projectConfig.tasks)
-      && manualPreview.projectConfig.tasks.some((task) => task.type === "requestFromFile"),
-    "preview-manual: missing requestFromFile task"
+  const workflowDoc = workflow.createWorkflowFromTemplate("easy_api_accounts");
+  workflow.exportWorkflowFile(workflowDoc, flowPath);
+  execFileSync(
+    process.execPath,
+    ["index.js", "export", "--workflow", flowPath, "--output", outputDir],
+    {
+      cwd: ROOT,
+      stdio: "pipe",
+    }
   );
-
-  const importPreview = desktopService.previewImportProject({
-    projectName: "health-preview-import",
-    outputDir: path.join(ROOT, "generated", "health-preview-import"),
-    sourceType: "har",
-    inputPath: path.join(ROOT, "examples", "sample.har"),
-    accountSource: "accounts",
-    accountFields: ["email", "password"],
-    authMode: "request",
-    useProxy: false,
-    repeat: false,
-    intervalMinutes: 0,
-    concurrency: 1,
-  });
-
-  assert(
-    importPreview.projectConfig
-      && Array.isArray(importPreview.projectConfig.tasks)
-      && importPreview.projectConfig.tasks.length > 0,
-    "preview-import: missing tasks"
-  );
-  assert(
-    importPreview.report
-      && importPreview.report.selected
-      && importPreview.report.selected.groupCount > 0,
-    "preview-import: missing import report summary"
-  );
-  console.log("[PASS] preview-projects");
+  assertGeneratedProject(outputDir, "cli-export");
+  console.log("[PASS] cli-export");
 }
 
-function runGeneratedDoctorCheck() {
-  const outputDir = path.join(ROOT, "generated", "health-doctor");
-  createProject({
-    projectName: "health-doctor",
-    outputDir,
-    accountSource: "tokens",
-    accountFields: [],
-    useProxy: false,
-    repeat: false,
-    intervalMinutes: 0,
-    concurrency: 1,
-    auth: {
-      type: "account_token",
-      tokenField: "token",
-    },
-    authMode: "account_token",
-    selectedPresets: [],
-    customTasks: [
-      {
-        type: "request",
-        name: "ping",
-        method: "GET",
-        url: "https://example.com/ping",
-      },
-    ],
-  });
+function runDetectorCheck() {
+  const har = workflowService.detectImportSourceType(path.join(ROOT, "examples", "sample.har"));
+  const postman = workflowService.detectImportSourceType(path.join(ROOT, "examples", "sample.postman_collection.json"));
+  const curl = workflowService.detectImportSourceType(path.join(ROOT, "examples", "sample-curl.txt"));
 
-  fs.writeFileSync(path.join(outputDir, "data", "tokens.txt"), "real_token_value\n", "utf8");
-  execFileSync(process.execPath, ["doctor.js"], {
-    cwd: outputDir,
-    stdio: "pipe",
-  });
-
-  const reportPath = path.join(outputDir, "运行前检查报告.txt");
-  assert(fs.existsSync(reportPath), "generated-doctor: missing report file");
-  const reportText = fs.readFileSync(reportPath, "utf8");
-  assert(reportText.includes("结论: 可以启动。"), "generated-doctor: doctor did not report success");
-  console.log("[PASS] generated-doctor");
-}
-
-function expectThrows(fn, label, expectedText) {
-  let thrown = false;
-  try {
-    fn();
-  } catch (error) {
-    thrown = true;
-    const text = String(error && error.message ? error.message : error);
-    assert(text.includes(expectedText), `${label}: unexpected error message -> ${text}`);
-  }
-  assert(thrown, `${label}: expected throw`);
-  console.log(`[PASS] ${label}`);
-}
-
-function runInvalidImportChecks() {
-  const invalidHarPath = path.join(ROOT, "generated", "health-invalid.har");
-  fs.writeFileSync(invalidHarPath, "{ bad json", "utf8");
-  expectThrows(
-    () =>
-      desktopService.analyzeImport({
-        sourceType: "har",
-        inputPath: invalidHarPath,
-      }),
-    "invalid-har-json",
-    "HAR 文件不是有效 JSON"
-  );
-
-  const invalidPostmanPath = path.join(ROOT, "generated", "health-invalid-postman.json");
-  fs.writeFileSync(invalidPostmanPath, JSON.stringify({ info: { name: "demo" } }, null, 2), "utf8");
-  expectThrows(
-    () =>
-      desktopService.analyzeImport({
-        sourceType: "postman",
-        inputPath: invalidPostmanPath,
-      }),
-    "invalid-postman-structure",
-    "缺少 item 列表"
-  );
+  assert(har.sourceType === "har", "detector: har mismatch");
+  assert(postman.sourceType === "postman", "detector: postman mismatch");
+  assert(curl.sourceType === "curl", "detector: curl mismatch");
+  console.log("[PASS] import-detector");
 }
 
 function main() {
-  runNodeCheck(path.join(ROOT, "index.js"));
-  runNodeCheck(path.join(ROOT, "lib", "importer.js"));
-  runNodeCheck(path.join(ROOT, "lib", "generator.js"));
-  runNodeCheck(path.join(ROOT, "lib", "presets.js"));
-  runNodeCheck(path.join(ROOT, "lib", "desktop-service.js"));
-  runNodeCheck(path.join(ROOT, "desktop", "main.js"));
-  runNodeCheck(path.join(ROOT, "desktop", "preload.js"));
-  runNodeCheck(path.join(ROOT, "desktop", "renderer", "app.js"));
-  console.log("[PASS] syntax-check");
-  assertDesktopIconAssets();
-
-  runImportSmokeCase({
-    label: "har",
-    sourceType: "har",
-    fileName: "sample.har",
-    expect: {
-      accountSource: "accounts",
-      authType: "request",
-      mustContainTaskType: "claimList",
-    },
+  resetDir(HEALTH_ROOT);
+  runSyntaxChecks();
+  runCatalogCheck();
+  runProjectLibraryCheck();
+  runTemplateFlowCheck();
+  runImportFlowCheck("har", "har", "sample.har", {
+    authMode: "request",
+    mustHaveTaskType: "claimList",
   });
-
-  runImportSmokeCase({
-    label: "postman",
-    sourceType: "postman",
-    fileName: "sample.postman_collection.json",
-    expect: {
-      accountSource: "accounts",
-      authType: "request",
-      mustContainTaskType: "claimList",
-      mustContainEnvKey: "BASE_URL",
-    },
+  runImportFlowCheck("postman", "postman", "sample.postman_collection.json", {
+    authMode: "request",
+    mustHaveTaskType: "claimList",
   });
-
-  runImportSmokeCase({
-    label: "siwe",
-    sourceType: "har",
-    fileName: "sample-siwe.har",
-    expect: {
-      accountSource: "privateKeys",
-      authType: "evm_sign",
-      mustContainTaskType: "request",
-      mustHaveSiwe: true,
-    },
+  runImportFlowCheck("siwe", "har", "sample-siwe.har", {
+    authMode: "evm_sign",
+    mustHaveTaskType: "request",
   });
-
-  runImportSmokeCase({
-    label: "curl",
-    sourceType: "curl",
-    fileName: "sample-curl.txt",
-    expect: {
-      accountSource: "tokens",
-      authType: "account_token",
-      mustContainTaskType: "request",
-    },
+  runImportFlowCheck("curl", "curl", "sample-curl.txt", {
+    authMode: "account_token",
+    mustHaveTaskType: "request",
   });
-
-  runPackageNameFallbackCheck();
-  runBatchSubmitPresetCheck();
-  runPreviewChecks();
-  runGeneratedDoctorCheck();
-  runInvalidImportChecks();
-  const desktopPresets = desktopService.listPresets("privateKeys");
-  assert(Array.isArray(desktopPresets) && desktopPresets.length > 0, "desktop presets unavailable");
-  const desktopAnalysis = desktopService.analyzeImport({
-    sourceType: "har",
-    inputPath: path.join(ROOT, "examples", "sample.har"),
-  });
-  assert(Array.isArray(desktopAnalysis.candidates) && desktopAnalysis.candidates.length > 0, "desktop analyzeImport candidates unavailable");
-  assert(typeof desktopAnalysis.candidates[0].headers === "object", "desktop analyzeImport candidate headers missing");
-  assert("hasResponseBody" in desktopAnalysis.candidates[0], "desktop analyzeImport candidate response flag missing");
-  const detectedHar = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample.har"));
-  assert(detectedHar.sourceType === "har", "detectImportSourceType: har mismatch");
-  const detectedCurl = desktopService.detectImportSourceType(path.join(ROOT, "examples", "sample-curl.txt"));
-  assert(detectedCurl.sourceType === "curl", "detectImportSourceType: curl mismatch");
-  console.log("[PASS] desktop-service");
+  runWorkflowFileRoundTripCheck();
+  runCliExportCheck();
+  runDetectorCheck();
   console.log("health-check: all passed");
 }
 
