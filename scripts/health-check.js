@@ -241,12 +241,31 @@ function runSettingsCheck() {
 async function runRuntimeCheck() {
   const libraryRoot = path.join(HEALTH_ROOT, "runtime-library");
   const outputDir = path.join(HEALTH_ROOT, "runtime-output");
+  const missingDepsOutputDir = path.join(HEALTH_ROOT, "runtime-output-missing-deps");
   resetDir(libraryRoot);
   resetDir(outputDir);
+  resetDir(missingDepsOutputDir);
 
   fs.writeFileSync(
     path.join(outputDir, "main.js"),
     'console.log("hello runtime"); setTimeout(() => { console.log("runtime done"); process.exit(0); }, 200);',
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(outputDir, "package.json"),
+    `${JSON.stringify({ name: "runtime-check", private: true, main: "main.js" }, null, 2)}\n`,
+    "utf8"
+  );
+  fs.mkdirSync(path.join(outputDir, "node_modules"), { recursive: true });
+
+  fs.writeFileSync(
+    path.join(missingDepsOutputDir, "main.js"),
+    'console.log("missing deps runtime");',
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(missingDepsOutputDir, "package.json"),
+    `${JSON.stringify({ name: "runtime-missing-deps", private: true, main: "main.js" }, null, 2)}\n`,
     "utf8"
   );
 
@@ -263,10 +282,44 @@ async function runRuntimeCheck() {
   });
   assert(started.status === "running", "runtime: start mismatch");
 
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const history = workflowService.listRunHistory(libraryRoot, saved.summary.id);
+  let history = [];
+  let reloaded = null;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    history = workflowService.listRunHistory(libraryRoot, saved.summary.id);
+    reloaded = workflowService.loadStoredProject(libraryRoot, saved.summary.id);
+    if (history[0] && history[0].status === "completed" && reloaded.workflow.runtime.run.status === "completed") {
+      break;
+    }
+  }
+
   assert(Array.isArray(history) && history.length > 0, "runtime: history missing");
   assert(["completed", "running"].includes(history[0].status), "runtime: unexpected status");
+  reloaded = reloaded || workflowService.loadStoredProject(libraryRoot, saved.summary.id);
+  assert(reloaded.workflow.runtime.run.status === "completed", "runtime: stored status mismatch");
+  assert(reloaded.workflow.artifacts.lastRunLogPath, "runtime: missing lastRunLogPath");
+
+  let missingDepsError = null;
+  try {
+    workflowService.runWorkflow(libraryRoot, {
+      projectId: saved.summary.id,
+      workflow: {
+        ...reloaded.workflow,
+        project: {
+          ...reloaded.workflow.project,
+          lastOutputDir: missingDepsOutputDir,
+        },
+      },
+      outputDir: missingDepsOutputDir,
+    });
+  } catch (error) {
+    missingDepsError = error;
+  }
+  assert(missingDepsError, "runtime: missing deps should fail");
+  assert(
+    /安装依赖|npm install/.test(missingDepsError.message || ""),
+    "runtime: missing deps error should be actionable"
+  );
   console.log("[PASS] runtime-history");
 }
 

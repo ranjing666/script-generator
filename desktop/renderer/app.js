@@ -1386,7 +1386,18 @@ function schedulePreview() {
   }, 350);
 }
 
-function mutateCurrentWorkflow(mutator) {
+function commitCurrentWorkflow(nextWorkflow, options = {}) {
+  state.currentWorkflow = nextWorkflow;
+  renderAll();
+  if (options.autoSave !== false) {
+    scheduleAutoSave();
+  }
+  if (options.refreshPreview !== false) {
+    schedulePreview();
+  }
+}
+
+function mutateCurrentWorkflow(mutator, options = {}) {
   if (!state.currentWorkflow) {
     return;
   }
@@ -1394,10 +1405,41 @@ function mutateCurrentWorkflow(mutator) {
   const nextWorkflow = deepClone(state.currentWorkflow);
   mutator(nextWorkflow);
   normalizeWorkflowLocal(nextWorkflow);
-  state.currentWorkflow = nextWorkflow;
-  renderAll();
-  scheduleAutoSave();
-  schedulePreview();
+  commitCurrentWorkflow(nextWorkflow, options);
+}
+
+function syncRuntimeStateFromRecord(record) {
+  if (!state.currentWorkflow || !record) {
+    renderRunHistory();
+    return;
+  }
+
+  const currentStatus = String(state.currentWorkflow.runtime && state.currentWorkflow.runtime.run && state.currentWorkflow.runtime.run.status || "");
+  const currentRunId = String(state.currentWorkflow.runtime && state.currentWorkflow.runtime.run && state.currentWorkflow.runtime.run.lastRunId || "");
+  const nextStatus = String(record.status || "");
+  const nextRunId = String(record.runId || "");
+  const nextLogPath = String(record.logPath || "");
+  const nextOutputDir = String(record.outputDir || "");
+
+  if (
+    currentStatus === nextStatus
+    && currentRunId === nextRunId
+    && String(state.currentWorkflow.artifacts && state.currentWorkflow.artifacts.lastRunLogPath || "") === nextLogPath
+    && String(state.currentWorkflow.project && state.currentWorkflow.project.lastOutputDir || "") === nextOutputDir
+  ) {
+    renderRunHistory();
+    return;
+  }
+
+  mutateCurrentWorkflow((workflow) => {
+    workflow.runtime.run.status = nextStatus || workflow.runtime.run.status;
+    workflow.runtime.run.lastRunId = nextRunId || workflow.runtime.run.lastRunId;
+    workflow.project.lastOutputDir = nextOutputDir || workflow.project.lastOutputDir;
+    workflow.artifacts.lastRunLogPath = nextLogPath || workflow.artifacts.lastRunLogPath;
+  }, {
+    autoSave: false,
+    refreshPreview: false,
+  });
 }
 
 async function refreshProjects(selectProjectId) {
@@ -1663,7 +1705,7 @@ async function refreshRunHistory(silent = false) {
   state.runHistory = await desktopApi.getRunHistory({
     projectId: state.currentProjectId,
   });
-  renderRunHistory();
+  syncRuntimeStateFromRecord(state.runHistory[0] || null);
   if (!silent) {
     setResultStatus("运行记录已刷新。", "success");
   }
@@ -1690,11 +1732,7 @@ async function runCurrentWorkflow() {
     outputDir: getCurrentOutputDir(),
   });
   state.runHistory = [result, ...state.runHistory.filter((item) => item.runId !== result.runId)];
-  mutateCurrentWorkflow((workflow) => {
-    workflow.runtime.run.status = result.status;
-    workflow.runtime.run.lastRunId = result.runId;
-    workflow.artifacts.lastRunLogPath = result.logPath || "";
-  });
+  syncRuntimeStateFromRecord(result);
   setResultStatus(`已启动应用内运行\nRun ID: ${result.runId}`, "success");
 }
 
@@ -1708,10 +1746,7 @@ async function pauseCurrentRun() {
     workflow: state.currentWorkflow,
   });
   await refreshRunHistory(true);
-  mutateCurrentWorkflow((workflow) => {
-    workflow.runtime.run.status = result.status;
-    workflow.runtime.run.lastRunId = result.runId;
-  });
+  syncRuntimeStateFromRecord(result);
   setResultStatus(`运行已暂停\nRun ID: ${result.runId}`, "warn");
 }
 
@@ -1725,10 +1760,7 @@ async function resumeCurrentRun() {
     workflow: state.currentWorkflow,
   });
   await refreshRunHistory(true);
-  mutateCurrentWorkflow((workflow) => {
-    workflow.runtime.run.status = result.status;
-    workflow.runtime.run.lastRunId = result.runId;
-  });
+  syncRuntimeStateFromRecord(result);
   setResultStatus(`运行已继续\nRun ID: ${result.runId}`, "success");
 }
 
@@ -1742,10 +1774,7 @@ async function stopCurrentRun() {
     workflow: state.currentWorkflow,
   });
   await refreshRunHistory(true);
-  mutateCurrentWorkflow((workflow) => {
-    workflow.runtime.run.status = result.status;
-    workflow.runtime.run.lastRunId = result.runId;
-  });
+  syncRuntimeStateFromRecord(result);
   setResultStatus(`运行停止指令已发送\nRun ID: ${result.runId}`, "warn");
 }
 
@@ -1988,6 +2017,17 @@ elements.projectList.addEventListener("click", async (event) => {
 });
 
 elements.createUrlBtn.addEventListener("click", () => {
+  createUrlProject().catch((error) => {
+    setResultStatus(`官网 URL 分析失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.urlInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
+
+  event.preventDefault();
   createUrlProject().catch((error) => {
     setResultStatus(`官网 URL 分析失败: ${error.message || String(error)}`, "danger");
   });
