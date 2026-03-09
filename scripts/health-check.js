@@ -32,6 +32,7 @@ function resetDir(dirPath) {
 function assertStarterFiles(outputDir, label) {
   [
     "project.config.json",
+    "runtime.config.json",
     "doctor.js",
     "main.js",
     "lib/runner.js",
@@ -73,6 +74,10 @@ function runSyntaxChecks() {
     "lib/workflow/exporter.js",
     "lib/workflow/projects.js",
     "lib/workflow/service.js",
+    "lib/workflow/adapters.js",
+    "lib/workflow/url-analysis.js",
+    "lib/workflow/settings.js",
+    "lib/workflow/runtime.js",
     "desktop/main.js",
     "desktop/preload.js",
     "desktop/renderer/app.js",
@@ -86,7 +91,54 @@ function runCatalogCheck() {
   const catalog = workflowService.getCatalog();
   assert(Array.isArray(catalog.templates) && catalog.templates.length > 0, "catalog: missing templates");
   assert(Array.isArray(catalog.stepCatalog) && catalog.stepCatalog.length > 0, "catalog: missing step catalog");
+  assert(Array.isArray(catalog.taskPresets) && catalog.taskPresets.length > 0, "catalog: missing task presets");
+  assert(Array.isArray(catalog.adapters) && catalog.adapters.length > 0, "catalog: missing adapters");
   console.log("[PASS] workflow-catalog");
+}
+
+function runWorkflowV2Check() {
+  const workflowDoc = workflow.createBlankWorkflow({ projectName: "v2-check" });
+  assert(workflowDoc.meta.workflowVersion === 2, "workflow-v2: version mismatch");
+  assert(workflowDoc.analysis && workflowDoc.runtime && workflowDoc.review && workflowDoc.artifacts && workflowDoc.adapter, "workflow-v2: missing top-level sections");
+
+  const normalized = workflow.normalizeWorkflow({
+    meta: { name: "legacy" },
+    project: { name: "legacy" },
+    account: { source: "accounts", fields: ["email", "password"] },
+    auth: { mode: "none" },
+    steps: [
+      {
+        id: "legacy_wait",
+        type: "wait",
+        title: "Wait",
+        enabled: true,
+        source: "manual",
+        config: { type: "wait", name: "wait_step", delayMs: 1000 },
+      },
+    ],
+  });
+  assert(normalized.meta.workflowVersion === 2, "workflow-v2: normalize should upgrade version");
+  console.log("[PASS] workflow-v2");
+}
+
+function runPresetStepCheck() {
+  const accountPreset = workflowService.createPresetStep({
+    presetId: "api_batch_submit",
+    accountSource: "accounts",
+    accountFields: ["email", "password"],
+    authMode: "request",
+  });
+  assert(accountPreset.type === "requestFromFile", "preset-step: requestFromFile mismatch");
+  assert(accountPreset.metadata && accountPreset.metadata.presetId === "api_batch_submit", "preset-step: metadata mismatch");
+
+  const privateKeyPreset = workflowService.createPresetStep({
+    presetId: "contract_call",
+    accountSource: "privateKeys",
+    accountFields: [],
+    authMode: "evm_sign",
+  });
+  assert(privateKeyPreset.type === "contractWrite", "preset-step: contractWrite mismatch");
+  console.log("[PASS] workflow-preset-step");
 }
 
 function runProjectLibraryCheck() {
@@ -143,6 +195,79 @@ function runProjectLibraryCheck() {
   assert(loaded.workflow.project.name === "blank-health-renamed", "library: load name mismatch");
   assert(Array.isArray(listed) && listed.length === 1, "library: list mismatch");
   console.log("[PASS] workflow-library");
+}
+
+async function runUrlAnalysisCheck() {
+  const libraryRoot = path.join(HEALTH_ROOT, "url-library");
+  resetDir(libraryRoot);
+  const html = fs.readFileSync(path.join(ROOT, "examples", "sample-url.html"), "utf8");
+  const analyzed = await workflowService.analyzeUrl(libraryRoot, {
+    url: "https://quests.example.com/faucet",
+    html,
+    title: "Quest Faucet Portal",
+    projectName: "url-workflow",
+  });
+
+  assert(analyzed.summary.sourceKind === "url", "url-analysis: sourceKind mismatch");
+  assert(analyzed.workflow.analysis && analyzed.workflow.analysis.sourceType === "url", "url-analysis: missing analysis");
+  assert(analyzed.workflow.adapter && analyzed.workflow.adapter.id, "url-analysis: missing adapter");
+  assert(
+    analyzed.workflow.steps.some((step) => ["browserAction", "walletConnect", "captchaSolve", "request"].includes(step.type)),
+    "url-analysis: expected new step types"
+  );
+  console.log("[PASS] url-analysis");
+}
+
+function runSettingsCheck() {
+  const libraryRoot = path.join(HEALTH_ROOT, "settings-library");
+  resetDir(libraryRoot);
+  const saved = workflowService.updateSettings(libraryRoot, {
+    ai: {
+      provider: "openai",
+      endpoint: "https://api.example.com/v1",
+      model: "gpt-4.1-mini",
+      apiKey: "secret",
+    },
+    wallet: {
+      mode: "hybrid",
+    },
+  });
+  const loaded = workflowService.getSettings(libraryRoot);
+  assert(saved.ai.provider === "openai", "settings: save mismatch");
+  assert(loaded.ai.provider === "openai", "settings: load mismatch");
+  console.log("[PASS] settings");
+}
+
+async function runRuntimeCheck() {
+  const libraryRoot = path.join(HEALTH_ROOT, "runtime-library");
+  const outputDir = path.join(HEALTH_ROOT, "runtime-output");
+  resetDir(libraryRoot);
+  resetDir(outputDir);
+
+  fs.writeFileSync(
+    path.join(outputDir, "main.js"),
+    'console.log("hello runtime"); setTimeout(() => { console.log("runtime done"); process.exit(0); }, 200);',
+    "utf8"
+  );
+
+  const created = workflowService.createProject(libraryRoot, {
+    starter: { type: "blank" },
+    projectName: "runtime-workflow",
+  });
+  created.workflow.project.lastOutputDir = outputDir;
+  const saved = workflowService.saveStoredProject(libraryRoot, created.summary.id, created.workflow);
+  const started = workflowService.runWorkflow(libraryRoot, {
+    projectId: saved.summary.id,
+    workflow: saved.workflow,
+    outputDir,
+  });
+  assert(started.status === "running", "runtime: start mismatch");
+
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const history = workflowService.listRunHistory(libraryRoot, saved.summary.id);
+  assert(Array.isArray(history) && history.length > 0, "runtime: history missing");
+  assert(["completed", "running"].includes(history[0].status), "runtime: unexpected status");
+  console.log("[PASS] runtime-history");
 }
 
 function runTemplateFlowCheck() {
@@ -259,11 +384,15 @@ function runDetectorCheck() {
   console.log("[PASS] import-detector");
 }
 
-function main() {
+async function main() {
   resetDir(HEALTH_ROOT);
   runSyntaxChecks();
   runCatalogCheck();
+  runWorkflowV2Check();
+  runPresetStepCheck();
   runProjectLibraryCheck();
+  await runUrlAnalysisCheck();
+  runSettingsCheck();
   runTemplateFlowCheck();
   runImportFlowCheck("har", "har", "sample.har", {
     authMode: "request",
@@ -284,11 +413,15 @@ function main() {
   runWorkflowFileRoundTripCheck();
   runCliExportCheck();
   runDetectorCheck();
+  await runRuntimeCheck();
   console.log("health-check: all passed");
 }
 
 try {
-  main();
+  Promise.resolve(main()).catch((error) => {
+    console.error(`health-check failed: ${error.message}`);
+    process.exit(1);
+  });
 } catch (error) {
   console.error(`health-check failed: ${error.message}`);
   process.exit(1);

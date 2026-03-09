@@ -277,6 +277,19 @@ button:disabled {
   align-items: center;
 }
 
+.step-builder {
+  display: grid;
+  gap: 8px;
+}
+
+.step-builder .inline-actions {
+  justify-content: flex-end;
+}
+
+.step-builder select {
+  min-width: 210px;
+}
+
 .inline-row input {
   flex: 1;
 }
@@ -342,6 +355,10 @@ button:disabled {
 .diagnostics-list {
   display: grid;
   gap: 12px;
+}
+
+.settings-card input[type="text"] {
+  font-size: 12px;
 }
 
 .project-item,
@@ -411,6 +428,12 @@ button:disabled {
   line-height: 1.5;
 }
 
+.source-card ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
 .diagnostic-item.blocker {
   border-color: rgba(255, 123, 114, 0.28);
 }
@@ -429,6 +452,13 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.step-hint {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 12px;
 }
 
 .code-view,
@@ -460,6 +490,15 @@ button:disabled {
 
 .status-box.danger {
   color: #ffd0cc;
+}
+
+#runHistoryList .diagnostic-item p:last-child {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
 }
 
 @media (max-width: 1380px) {
@@ -495,5 +534,9 @@ button:disabled {
   .field-grid,
   .source-grid {
     grid-template-columns: 1fr;
+  }
+
+  .step-builder .inline-actions {
+    justify-content: stretch;
   }
 }

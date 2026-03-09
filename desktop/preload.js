@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld("desktopApi", {
   getWorkflowCatalog() {
     return invoke("workflow:get-catalog");
   },
+  getSettings() {
+    return invoke("workflow:get-settings");
+  },
+  saveSettings(settings) {
+    return invoke("workflow:save-settings", settings);
+  },
   chooseImportFile() {
     return invoke("dialog:choose-import-file");
   },
@@ -29,11 +35,17 @@ contextBridge.exposeInMainWorld("desktopApi", {
   createProject(options) {
     return invoke("workflow:create-project", options);
   },
+  analyzeUrl(options) {
+    return invoke("workflow:analyze-url", options);
+  },
   loadProject(projectId) {
     return invoke("workflow:load-project", projectId);
   },
   saveProject(payload) {
     return invoke("workflow:save-project", payload);
+  },
+  createPresetStep(options) {
+    return invoke("workflow:create-preset-step", options);
   },
   importSource(options) {
     return invoke("workflow:import-source", options);
@@ -46,6 +58,21 @@ contextBridge.exposeInMainWorld("desktopApi", {
   },
   previewWorkflowExport(payload) {
     return invoke("workflow:preview-export", payload);
+  },
+  runWorkflow(payload) {
+    return invoke("workflow:run", payload);
+  },
+  pauseWorkflow(payload) {
+    return invoke("workflow:pause", payload);
+  },
+  resumeWorkflow(payload) {
+    return invoke("workflow:resume", payload);
+  },
+  stopWorkflow(payload) {
+    return invoke("workflow:stop", payload);
+  },
+  getRunHistory(payload) {
+    return invoke("workflow:get-run-history", payload);
   },
   openPath(targetPath) {
     return invoke("shell:open-path", targetPath);

@@ -3,19 +3,23 @@
 const state = {
   meta: null,
   catalog: null,
+  settings: null,
   projects: [],
   currentProjectId: null,
   currentWorkflow: null,
   preview: null,
+  runHistory: [],
   previewRequestId: 0,
   saveTimer: null,
   previewTimer: null,
+  runPollTimer: null,
 };
 
 const SOURCE_KIND_LABELS = {
   blank: "空白流程",
   template: "模板起点",
   import: "抓包导入",
+  url: "官网 URL",
   "workflow-file": "流程文件导入",
 };
 
@@ -32,6 +36,8 @@ const elements = {
   saveProjectBtn: document.getElementById("saveProjectBtn"),
   previewBtn: document.getElementById("previewBtn"),
   generateBtn: document.getElementById("generateBtn"),
+  urlInput: document.getElementById("urlInput"),
+  createUrlBtn: document.getElementById("createUrlBtn"),
   createBlankBtn: document.getElementById("createBlankBtn"),
   createImportBtn: document.getElementById("createImportBtn"),
   importWorkflowBtn: document.getElementById("importWorkflowBtn"),
@@ -52,6 +58,8 @@ const elements = {
   accountFieldsInput: document.getElementById("accountFieldsInput"),
   authModeSelect: document.getElementById("authModeSelect"),
   authEditor: document.getElementById("authEditor"),
+  presetSelect: document.getElementById("presetSelect"),
+  addPresetBtn: document.getElementById("addPresetBtn"),
   stepTypeSelect: document.getElementById("stepTypeSelect"),
   addStepBtn: document.getElementById("addStepBtn"),
   stepList: document.getElementById("stepList"),
@@ -62,6 +70,25 @@ const elements = {
   openOutputBtn: document.getElementById("openOutputBtn"),
   previewJson: document.getElementById("previewJson"),
   resultStatus: document.getElementById("resultStatus"),
+  saveSettingsBtn: document.getElementById("saveSettingsBtn"),
+  aiProviderSelect: document.getElementById("aiProviderSelect"),
+  aiModelInput: document.getElementById("aiModelInput"),
+  aiEndpointInput: document.getElementById("aiEndpointInput"),
+  aiApiKeyInput: document.getElementById("aiApiKeyInput"),
+  captchaProviderSelect: document.getElementById("captchaProviderSelect"),
+  captchaEndpointInput: document.getElementById("captchaEndpointInput"),
+  captchaApiKeyInput: document.getElementById("captchaApiKeyInput"),
+  browserProfileInput: document.getElementById("browserProfileInput"),
+  walletModeSelect: document.getElementById("walletModeSelect"),
+  evmRpcInput: document.getElementById("evmRpcInput"),
+  solanaRpcInput: document.getElementById("solanaRpcInput"),
+  runWorkflowBtn: document.getElementById("runWorkflowBtn"),
+  pauseRunBtn: document.getElementById("pauseRunBtn"),
+  resumeRunBtn: document.getElementById("resumeRunBtn"),
+  stopRunBtn: document.getElementById("stopRunBtn"),
+  refreshRunHistoryBtn: document.getElementById("refreshRunHistoryBtn"),
+  runSummary: document.getElementById("runSummary"),
+  runHistoryList: document.getElementById("runHistoryList"),
 };
 
 function deepClone(value) {
@@ -144,6 +171,76 @@ function safeParseJson(text, label) {
   } catch {
     throw new Error(`${label} 不是有效 JSON。`);
   }
+}
+
+function createDefaultSettings() {
+  return {
+    ai: {
+      provider: "disabled",
+      endpoint: "",
+      model: "",
+      apiKey: "",
+    },
+    captcha: {
+      provider: "manual",
+      endpoint: "",
+      apiKey: "",
+    },
+    browser: {
+      preferredProfile: "",
+      reuseSession: true,
+      automationMode: "local-first",
+    },
+    proxy: {
+      defaultProxy: "",
+      useSystemProxy: true,
+    },
+    rpc: {
+      evmRpcUrl: "",
+      solanaRpcUrl: "",
+    },
+    wallet: {
+      mode: "hybrid",
+      evmProvider: "metamask",
+      solanaProvider: "phantom",
+    },
+  };
+}
+
+function normalizeSettingsLocal(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const defaults = createDefaultSettings();
+  return {
+    ai: {
+      provider: String(source.ai && source.ai.provider || defaults.ai.provider),
+      endpoint: String(source.ai && source.ai.endpoint || defaults.ai.endpoint),
+      model: String(source.ai && source.ai.model || defaults.ai.model),
+      apiKey: String(source.ai && source.ai.apiKey || defaults.ai.apiKey),
+    },
+    captcha: {
+      provider: String(source.captcha && source.captcha.provider || defaults.captcha.provider),
+      endpoint: String(source.captcha && source.captcha.endpoint || defaults.captcha.endpoint),
+      apiKey: String(source.captcha && source.captcha.apiKey || defaults.captcha.apiKey),
+    },
+    browser: {
+      preferredProfile: String(source.browser && source.browser.preferredProfile || defaults.browser.preferredProfile),
+      reuseSession: !source.browser || source.browser.reuseSession !== false,
+      automationMode: String(source.browser && source.browser.automationMode || defaults.browser.automationMode),
+    },
+    proxy: {
+      defaultProxy: String(source.proxy && source.proxy.defaultProxy || defaults.proxy.defaultProxy),
+      useSystemProxy: !source.proxy || source.proxy.useSystemProxy !== false,
+    },
+    rpc: {
+      evmRpcUrl: String(source.rpc && source.rpc.evmRpcUrl || defaults.rpc.evmRpcUrl),
+      solanaRpcUrl: String(source.rpc && source.rpc.solanaRpcUrl || defaults.rpc.solanaRpcUrl),
+    },
+    wallet: {
+      mode: String(source.wallet && source.wallet.mode || defaults.wallet.mode),
+      evmProvider: String(source.wallet && source.wallet.evmProvider || defaults.wallet.evmProvider),
+      solanaProvider: String(source.wallet && source.wallet.solanaProvider || defaults.wallet.solanaProvider),
+    },
+  };
 }
 
 function getAccountFile(accountSource) {
@@ -276,6 +373,15 @@ function syncLocalAuthStep(workflow) {
 
 function normalizeWorkflowLocal(workflow) {
   const current = workflow;
+  current.meta = current.meta || {};
+  current.project = current.project || {};
+  current.account = current.account || {};
+  current.auth = current.auth || {};
+  current.analysis = current.analysis || {};
+  current.runtime = current.runtime || {};
+  current.review = current.review || {};
+  current.artifacts = current.artifacts || {};
+  current.adapter = current.adapter || {};
   current.project.name = String(current.project.name || "untitled-workflow");
   current.project.concurrency = Math.max(1, Number(current.project.concurrency || 1));
   current.project.intervalMinutes = Math.max(1, Number(current.project.intervalMinutes || 60));
@@ -284,6 +390,7 @@ function normalizeWorkflowLocal(workflow) {
   current.project.outputDir = String(current.project.outputDir || "");
   current.project.lastOutputDir = String(current.project.lastOutputDir || "");
   current.meta.name = current.project.name;
+  current.meta.sourceKind = current.meta.sourceKind || "blank";
   current.account.source = current.account.source || "accounts";
   current.account.file = getAccountFile(current.account.source);
   current.account.delimiter = current.account.source === "accounts" ? "|" : null;
@@ -307,6 +414,47 @@ function normalizeWorkflowLocal(workflow) {
   } else {
     current.auth.config = null;
   }
+
+  current.analysis.sourceType = String(current.analysis.sourceType || current.meta.sourceKind || "manual");
+  current.analysis.sourceUrl = String(current.analysis.sourceUrl || "");
+  current.analysis.title = String(current.analysis.title || "");
+  current.analysis.fetchMode = String(current.analysis.fetchMode || "manual");
+  current.analysis.fetchedAt = String(current.analysis.fetchedAt || "");
+  current.analysis.warnings = Array.isArray(current.analysis.warnings) ? current.analysis.warnings : [];
+  current.analysis.signals = Array.isArray(current.analysis.signals) ? current.analysis.signals : [];
+  current.analysis.adapterCandidates = Array.isArray(current.analysis.adapterCandidates) ? current.analysis.adapterCandidates : [];
+  current.analysis.confidence = current.analysis.confidence && typeof current.analysis.confidence === "object"
+    ? current.analysis.confidence
+    : { score: 0, label: "未分析", notes: [] };
+  current.analysis.confidence.score = Number(current.analysis.confidence.score || 0);
+  current.analysis.confidence.label = String(current.analysis.confidence.label || "未分析");
+  current.analysis.confidence.notes = Array.isArray(current.analysis.confidence.notes)
+    ? current.analysis.confidence.notes
+    : [];
+
+  current.runtime.executionMode = String(current.runtime.executionMode || "generated-project");
+  current.runtime.identityPriority = Array.isArray(current.runtime.identityPriority) && current.runtime.identityPriority.length > 0
+    ? current.runtime.identityPriority
+    : ["browserSession", "localAccount"];
+  current.runtime.run = current.runtime.run && typeof current.runtime.run === "object" ? current.runtime.run : {};
+  current.runtime.run.status = String(current.runtime.run.status || "idle");
+  current.runtime.run.lastRunId = String(current.runtime.run.lastRunId || "");
+  current.runtime.run.requiresGeneratedProject = current.runtime.run.requiresGeneratedProject !== false;
+
+  current.review.status = String(current.review.status || "not_started");
+  current.review.requiresHumanReview = Boolean(current.review.requiresHumanReview);
+  current.review.reasons = Array.isArray(current.review.reasons) ? current.review.reasons : [];
+
+  current.artifacts.htmlSnapshotPath = String(current.artifacts.htmlSnapshotPath || "");
+  current.artifacts.networkLogPath = String(current.artifacts.networkLogPath || "");
+  current.artifacts.tracePath = String(current.artifacts.tracePath || "");
+  current.artifacts.generatedOutputDir = String(current.artifacts.generatedOutputDir || current.project.lastOutputDir || "");
+  current.artifacts.lastRunLogPath = String(current.artifacts.lastRunLogPath || "");
+
+  current.adapter.id = String(current.adapter.id || "manual");
+  current.adapter.label = String(current.adapter.label || "手动流程");
+  current.adapter.confidence = Number(current.adapter.confidence || 0);
+  current.adapter.matchReason = String(current.adapter.matchReason || "");
 
   syncLocalAuthStep(current);
   return current;
@@ -371,6 +519,22 @@ function renderProjectBasics() {
     `${SOURCE_KIND_LABELS[workflow.meta.sourceKind] || workflow.meta.sourceKind} · ${workflow.meta.id}`;
 }
 
+function renderSettingsPanel() {
+  const settings = normalizeSettingsLocal(state.settings);
+  state.settings = settings;
+  elements.aiProviderSelect.value = settings.ai.provider;
+  elements.aiModelInput.value = settings.ai.model;
+  elements.aiEndpointInput.value = settings.ai.endpoint;
+  elements.aiApiKeyInput.value = settings.ai.apiKey;
+  elements.captchaProviderSelect.value = settings.captcha.provider;
+  elements.captchaEndpointInput.value = settings.captcha.endpoint;
+  elements.captchaApiKeyInput.value = settings.captcha.apiKey;
+  elements.browserProfileInput.value = settings.browser.preferredProfile;
+  elements.walletModeSelect.value = settings.wallet.mode;
+  elements.evmRpcInput.value = settings.rpc.evmRpcUrl;
+  elements.solanaRpcInput.value = settings.rpc.solanaRpcUrl;
+}
+
 function renderSourcePanel() {
   if (!state.currentWorkflow) {
     elements.sourcePanel.innerHTML = '<div class="empty-block">没有来源材料。</div>';
@@ -416,6 +580,47 @@ function renderSourcePanel() {
         <div class="source-card wide">
           <strong>文件位置</strong>
           <p>${escapeHtml(source.filePath)}</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (source.kind === "url") {
+    const analysis = state.currentWorkflow.analysis || {};
+    const adapter = state.currentWorkflow.adapter || {};
+    const review = state.currentWorkflow.review || {};
+    const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
+    const signals = Array.isArray(analysis.signals) ? analysis.signals : [];
+    elements.sourcePanel.innerHTML = `
+      <div class="source-grid">
+        <div class="source-card">
+          <strong>官网 URL</strong>
+          <p>${escapeHtml(source.sourceUrl || analysis.sourceUrl || "")}</p>
+        </div>
+        <div class="source-card">
+          <strong>页面标题</strong>
+          <p>${escapeHtml(analysis.title || source.title || "未识别")}</p>
+        </div>
+        <div class="source-card">
+          <strong>分析方式</strong>
+          <p>${escapeHtml(analysis.fetchMode || source.fetchMode || "manual")} · ${escapeHtml(analysis.confidence ? `${analysis.confidence.label}（${analysis.confidence.score} 分）` : "未评分")}</p>
+        </div>
+        <div class="source-card">
+          <strong>适配器</strong>
+          <p>${escapeHtml(adapter.label || adapter.id || "手动流程")}</p>
+        </div>
+        <div class="source-card wide">
+          <strong>识别信号</strong>
+          <p>${signals.length > 0 ? escapeHtml(signals.join("、")) : "当前没有稳定信号，可能只是首页。"}</p>
+        </div>
+        <div class="source-card wide">
+          <strong>人工确认</strong>
+          <p>${review.requiresHumanReview ? escapeHtml((review.reasons || []).join("；") || "需要人工确认") : "当前草案可以先直接预览和生成。"}</p>
+        </div>
+        <div class="source-card wide">
+          <strong>风险提示</strong>
+          <p>${warnings.length > 0 ? escapeHtml(warnings.join("；")) : "当前没有 URL 分析级别警告。"}</p>
         </div>
       </div>
     `;
@@ -474,6 +679,15 @@ function renderAccountSection() {
   elements.accountFieldsInput.disabled = workflow.account.source !== "accounts";
 
   renderAuthEditor();
+}
+
+function getVisibleTaskPresets() {
+  if (!state.catalog || !state.currentWorkflow) {
+    return [];
+  }
+
+  const isPrivateKeyMode = state.currentWorkflow.account.source === "privateKeys";
+  return (state.catalog.taskPresets || []).filter((item) => isPrivateKeyMode || !item.requiresPrivateKey);
 }
 
 function renderAuthEditor() {
@@ -805,6 +1019,202 @@ function renderStepFields(step) {
     `;
   }
 
+  if (step.type === "browserAction") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label>
+          action
+          <input data-step-config="action" type="text" value="${escapeHtml(config.action || "open")}" />
+        </label>
+        <label>
+          waitFor
+          <input data-step-config="waitFor" type="text" value="${escapeHtml(config.waitFor || "networkidle")}" />
+        </label>
+        <label class="wide">
+          URL
+          <input data-step-config="url" type="text" value="${escapeHtml(config.url || "")}" />
+        </label>
+        <label>
+          selector
+          <input data-step-config="selector" type="text" value="${escapeHtml(config.selector || "")}" />
+        </label>
+        <label>
+          inputValue
+          <input data-step-config="inputValue" type="text" value="${escapeHtml(config.inputValue || "")}" />
+        </label>
+        <label class="toggle-row">
+          <span>captureNetwork</span>
+          <input data-step-bool="captureNetwork" type="checkbox" ${config.captureNetwork ? "checked" : ""} />
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.type === "browserExtract") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label class="wide">
+          URL
+          <input data-step-config="url" type="text" value="${escapeHtml(config.url || "")}" />
+        </label>
+        <label>
+          selectors
+          <input data-step-csv="selectors" type="text" value="${escapeHtml(arrayToCsv(config.selectors))}" />
+        </label>
+        <label class="wide">
+          saveToState (JSON)
+          <textarea data-step-json="saveToState">${escapeHtml(jsonText(config.saveToState, {}))}</textarea>
+        </label>
+        <label class="toggle-row">
+          <span>extractNetwork</span>
+          <input data-step-bool="extractNetwork" type="checkbox" ${config.extractNetwork ? "checked" : ""} />
+        </label>
+        <label class="toggle-row">
+          <span>extractStorage</span>
+          <input data-step-bool="extractStorage" type="checkbox" ${config.extractStorage ? "checked" : ""} />
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.type === "captchaSolve") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label>
+          provider
+          <input data-step-config="provider" type="text" value="${escapeHtml(config.provider || "manual")}" />
+        </label>
+        <label>
+          captchaType
+          <input data-step-config="captchaType" type="text" value="${escapeHtml(config.captchaType || "auto")}" />
+        </label>
+        <label class="wide">
+          pageUrl
+          <input data-step-config="pageUrl" type="text" value="${escapeHtml(config.pageUrl || "")}" />
+        </label>
+        <label>
+          siteKey
+          <input data-step-config="siteKey" type="text" value="${escapeHtml(config.siteKey || "")}" />
+        </label>
+        <label>
+          timeoutMs
+          <input data-step-number="timeoutMs" type="number" min="0" value="${escapeHtml(String(config.timeoutMs || 0))}" />
+        </label>
+        <label class="toggle-row">
+          <span>manualFallback</span>
+          <input data-step-bool="manualFallback" type="checkbox" ${config.manualFallback ? "checked" : ""} />
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.type === "walletConnect") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label>
+          chain
+          <input data-step-config="chain" type="text" value="${escapeHtml(config.chain || "evm")}" />
+        </label>
+        <label>
+          provider
+          <input data-step-config="provider" type="text" value="${escapeHtml(config.provider || "metamask")}" />
+        </label>
+        <label>
+          walletType
+          <input data-step-config="walletType" type="text" value="${escapeHtml(config.walletType || "browser_extension")}" />
+        </label>
+        <label>
+          strategy
+          <input data-step-config="strategy" type="text" value="${escapeHtml(config.strategy || "browserSessionFirst")}" />
+        </label>
+        <label class="wide">
+          pageUrl
+          <input data-step-config="pageUrl" type="text" value="${escapeHtml(config.pageUrl || "")}" />
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.type === "solanaSign") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label>
+          walletProvider
+          <input data-step-config="walletProvider" type="text" value="${escapeHtml(config.walletProvider || "phantom")}" />
+        </label>
+        <label>
+          saveSignatureTo
+          <input data-step-config="saveSignatureTo" type="text" value="${escapeHtml(config.saveSignatureTo || "")}" />
+        </label>
+        <label class="wide">
+          pageUrl
+          <input data-step-config="pageUrl" type="text" value="${escapeHtml(config.pageUrl || "")}" />
+        </label>
+        <label class="wide">
+          message
+          <textarea data-step-config="message">${escapeHtml(config.message || "")}</textarea>
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.type === "solanaTransfer") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label>
+          rpcUrl
+          <input data-step-config="rpcUrl" type="text" value="${escapeHtml(config.rpcUrl || "")}" />
+        </label>
+        <label>
+          to
+          <input data-step-config="to" type="text" value="${escapeHtml(config.to || "")}" />
+        </label>
+        <label>
+          lamports
+          <input data-step-config="lamports" type="text" value="${escapeHtml(config.lamports || "")}" />
+        </label>
+        <label>
+          tokenMint
+          <input data-step-config="tokenMint" type="text" value="${escapeHtml(config.tokenMint || "")}" />
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.type === "contentUpload") {
+    return `
+      ${commonTop}
+      <div class="field-grid compact-grid">
+        <label>
+          contentType
+          <input data-step-config="contentType" type="text" value="${escapeHtml(config.contentType || "")}" />
+        </label>
+        <label>
+          sourceField
+          <input data-step-config="sourceField" type="text" value="${escapeHtml(config.sourceField || "")}" />
+        </label>
+        <label>
+          targetSelector
+          <input data-step-config="targetSelector" type="text" value="${escapeHtml(config.targetSelector || "")}" />
+        </label>
+        <label class="wide">
+          pageUrl
+          <input data-step-config="pageUrl" type="text" value="${escapeHtml(config.pageUrl || "")}" />
+        </label>
+        <label class="wide">
+          payload (JSON)
+          <textarea data-step-json="payload">${escapeHtml(jsonText(config.payload, {}))}</textarea>
+        </label>
+      </div>
+    `;
+  }
+
   return `
     ${commonTop}
     <div class="field-grid compact-grid">
@@ -839,6 +1249,9 @@ function renderStepList() {
               <span class="mini-pill">${escapeHtml(STEP_SOURCE_LABELS[step.source] || step.source)}</span>
               ${step.enabled ? '<span class="mini-pill success">启用</span>' : '<span class="mini-pill warn">禁用</span>'}
             </div>
+            ${step.metadata && step.metadata.presetLabel ? `
+              <p class="step-hint">快速积木: ${escapeHtml(step.metadata.presetLabel)}</p>
+            ` : ""}
           </div>
           ${step.type === "auth" ? `
             <div class="inline-actions">
@@ -895,14 +1308,50 @@ function renderPreview() {
   elements.previewJson.textContent = `${JSON.stringify(state.preview.projectConfig, null, 2)}\n`;
 }
 
+function renderRunHistory() {
+  const history = Array.isArray(state.runHistory) ? state.runHistory : [];
+  const latest = history[0] || null;
+
+  elements.runSummary.textContent = latest
+    ? `状态: ${latest.status}\nRun ID: ${latest.runId}\n目录: ${latest.outputDir}\n开始: ${latest.startedAt}${latest.finishedAt ? `\n结束: ${latest.finishedAt}` : ""}${latest.summary ? `\n摘要: ${latest.summary}` : ""}`
+    : "还没有运行记录。";
+  elements.runSummary.className = `status-box ${
+    !latest ? "neutral" : latest.status === "completed" ? "success" : latest.status === "failed" ? "danger" : latest.status === "paused" ? "warn" : "neutral"
+  }`;
+
+  elements.runWorkflowBtn.disabled = !state.currentWorkflow || !getCurrentOutputDir() || (latest && ["running", "paused", "stopping"].includes(latest.status));
+  elements.pauseRunBtn.disabled = !(latest && latest.status === "running");
+  elements.resumeRunBtn.disabled = !(latest && latest.status === "paused");
+  elements.stopRunBtn.disabled = !(latest && ["running", "paused"].includes(latest.status));
+
+  if (!history.length) {
+    elements.runHistoryList.innerHTML = '<div class="empty-block">生成项目后，可以直接在应用里托管运行 main.js。</div>';
+    return;
+  }
+
+  elements.runHistoryList.innerHTML = history
+    .map((item) => `
+      <div class="diagnostic-item ${escapeHtml(item.status === "failed" ? "blocker" : item.status === "paused" ? "warning" : "")}">
+        <strong>${escapeHtml(item.status)} · ${escapeHtml(item.runId)}</strong>
+        <p>${escapeHtml(item.summary || "")}</p>
+        <p>${escapeHtml(item.logTail || "暂无日志输出")}</p>
+      </div>
+    `)
+    .join("");
+}
+
 function renderAll() {
   renderProjectList();
   renderProjectBasics();
+  renderSettingsPanel();
   renderSourcePanel();
   renderAccountSection();
+  buildStepTypeOptions();
+  buildPresetOptions();
   renderStepList();
   renderDiagnostics();
   renderPreview();
+  renderRunHistory();
 }
 
 function scheduleAutoSave() {
@@ -968,6 +1417,7 @@ async function loadProject(projectId, announceText) {
   mergeProjectSummary(loaded.summary);
   renderAll();
   await refreshPreview(true);
+  await refreshRunHistory(true);
   setSaveState("已保存", "success");
   if (announceText) {
     setResultStatus(announceText, "success");
@@ -981,6 +1431,7 @@ async function applyLoadedResult(result, message) {
   mergeProjectSummary(result.summary);
   renderAll();
   await refreshPreview(true);
+  await refreshRunHistory(true);
   setSaveState("已保存", "success");
   setResultStatus(message, "success");
 }
@@ -1045,6 +1496,61 @@ async function importWorkflowProject() {
     projectName: deriveProjectNameFromPath(filePath),
   });
   await applyLoadedResult(result, `已导入流程文件 ${getPathTail(filePath)}。`);
+}
+
+function collectSettingsForm() {
+  return normalizeSettingsLocal({
+    ai: {
+      provider: elements.aiProviderSelect.value,
+      endpoint: elements.aiEndpointInput.value.trim(),
+      model: elements.aiModelInput.value.trim(),
+      apiKey: elements.aiApiKeyInput.value.trim(),
+    },
+    captcha: {
+      provider: elements.captchaProviderSelect.value,
+      endpoint: elements.captchaEndpointInput.value.trim(),
+      apiKey: elements.captchaApiKeyInput.value.trim(),
+    },
+    browser: {
+      preferredProfile: elements.browserProfileInput.value.trim(),
+      reuseSession: true,
+      automationMode: "local-first",
+    },
+    rpc: {
+      evmRpcUrl: elements.evmRpcInput.value.trim(),
+      solanaRpcUrl: elements.solanaRpcInput.value.trim(),
+    },
+    wallet: {
+      mode: elements.walletModeSelect.value,
+      evmProvider: "metamask",
+      solanaProvider: "phantom",
+    },
+  });
+}
+
+async function saveSettingsForm() {
+  state.settings = await desktopApi.saveSettings(collectSettingsForm());
+  renderSettingsPanel();
+  setResultStatus("运行设置已保存。", "success");
+}
+
+async function createUrlProject() {
+  const url = elements.urlInput.value.trim();
+  if (!url) {
+    setResultStatus("请先输入官网 URL。", "warn");
+    return;
+  }
+
+  const result = await desktopApi.analyzeUrl({
+    url,
+    projectName: "",
+    settings: state.settings,
+    concurrency: 1,
+    repeat: false,
+    intervalMinutes: 60,
+    useProxy: false,
+  });
+  await applyLoadedResult(result, `已从官网 URL 分析生成流程: ${url}`);
 }
 
 async function saveCurrentProject(silent = false) {
@@ -1147,14 +1653,139 @@ async function openOutputDir() {
   await desktopApi.openPath(targetPath);
 }
 
+async function refreshRunHistory(silent = false) {
+  if (!state.currentProjectId) {
+    state.runHistory = [];
+    renderRunHistory();
+    return;
+  }
+
+  state.runHistory = await desktopApi.getRunHistory({
+    projectId: state.currentProjectId,
+  });
+  renderRunHistory();
+  if (!silent) {
+    setResultStatus("运行记录已刷新。", "success");
+  }
+}
+
+function startRunPolling() {
+  if (state.runPollTimer) {
+    clearInterval(state.runPollTimer);
+  }
+
+  state.runPollTimer = setInterval(() => {
+    refreshRunHistory(true).catch(() => {});
+  }, 2500);
+}
+
+async function runCurrentWorkflow() {
+  if (!state.currentWorkflow || !state.currentProjectId) {
+    return;
+  }
+
+  const result = await desktopApi.runWorkflow({
+    projectId: state.currentProjectId,
+    workflow: state.currentWorkflow,
+    outputDir: getCurrentOutputDir(),
+  });
+  state.runHistory = [result, ...state.runHistory.filter((item) => item.runId !== result.runId)];
+  mutateCurrentWorkflow((workflow) => {
+    workflow.runtime.run.status = result.status;
+    workflow.runtime.run.lastRunId = result.runId;
+    workflow.artifacts.lastRunLogPath = result.logPath || "";
+  });
+  setResultStatus(`已启动应用内运行\nRun ID: ${result.runId}`, "success");
+}
+
+async function pauseCurrentRun() {
+  if (!state.currentProjectId || !state.currentWorkflow) {
+    return;
+  }
+
+  const result = await desktopApi.pauseWorkflow({
+    projectId: state.currentProjectId,
+    workflow: state.currentWorkflow,
+  });
+  await refreshRunHistory(true);
+  mutateCurrentWorkflow((workflow) => {
+    workflow.runtime.run.status = result.status;
+    workflow.runtime.run.lastRunId = result.runId;
+  });
+  setResultStatus(`运行已暂停\nRun ID: ${result.runId}`, "warn");
+}
+
+async function resumeCurrentRun() {
+  if (!state.currentProjectId || !state.currentWorkflow) {
+    return;
+  }
+
+  const result = await desktopApi.resumeWorkflow({
+    projectId: state.currentProjectId,
+    workflow: state.currentWorkflow,
+  });
+  await refreshRunHistory(true);
+  mutateCurrentWorkflow((workflow) => {
+    workflow.runtime.run.status = result.status;
+    workflow.runtime.run.lastRunId = result.runId;
+  });
+  setResultStatus(`运行已继续\nRun ID: ${result.runId}`, "success");
+}
+
+async function stopCurrentRun() {
+  if (!state.currentProjectId || !state.currentWorkflow) {
+    return;
+  }
+
+  const result = await desktopApi.stopWorkflow({
+    projectId: state.currentProjectId,
+    workflow: state.currentWorkflow,
+  });
+  await refreshRunHistory(true);
+  mutateCurrentWorkflow((workflow) => {
+    workflow.runtime.run.status = result.status;
+    workflow.runtime.run.lastRunId = result.runId;
+  });
+  setResultStatus(`运行停止指令已发送\nRun ID: ${result.runId}`, "warn");
+}
+
 function buildStepTypeOptions() {
   if (!state.catalog) {
     return;
   }
 
+  const currentValue = elements.stepTypeSelect.value;
   elements.stepTypeSelect.innerHTML = (state.catalog.stepCatalog || [])
     .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
     .join("");
+  if ((state.catalog.stepCatalog || []).some((item) => item.id === currentValue)) {
+    elements.stepTypeSelect.value = currentValue;
+  }
+}
+
+function buildPresetOptions() {
+  const presets = getVisibleTaskPresets();
+  const currentValue = elements.presetSelect.value;
+  elements.presetSelect.innerHTML = presets
+    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
+    .join("");
+
+  if (presets.some((item) => item.id === currentValue)) {
+    elements.presetSelect.value = currentValue;
+  }
+
+  const activePreset = presets.find((item) => item.id === elements.presetSelect.value) || presets[0] || null;
+  if (activePreset) {
+    elements.presetSelect.value = activePreset.id;
+    elements.presetSelect.title = activePreset.summary || activePreset.label;
+    elements.presetSelect.disabled = false;
+    elements.addPresetBtn.disabled = false;
+    return;
+  }
+
+  elements.presetSelect.disabled = true;
+  elements.presetSelect.title = "";
+  elements.addPresetBtn.disabled = true;
 }
 
 function addStep() {
@@ -1176,6 +1807,34 @@ function addStep() {
       config: deepClone(definition.defaultConfig),
     });
   });
+}
+
+async function addPresetStep() {
+  if (!state.currentWorkflow) {
+    return;
+  }
+
+  const presetId = elements.presetSelect.value;
+  if (!presetId) {
+    setResultStatus("当前没有可用的快速积木。", "warn");
+    return;
+  }
+
+  const step = await desktopApi.createPresetStep({
+    presetId,
+    accountSource: state.currentWorkflow.account.source,
+    accountFields: state.currentWorkflow.account.fields,
+    authMode: state.currentWorkflow.auth.mode,
+  });
+  const preset = getVisibleTaskPresets().find((item) => item.id === presetId);
+
+  mutateCurrentWorkflow((workflow) => {
+    workflow.steps.push(step);
+  });
+
+  if (preset) {
+    setResultStatus(`已添加快速积木: ${preset.label}`, "success");
+  }
 }
 
 function handleStepAction(target) {
@@ -1295,6 +1954,7 @@ function handleAuthFieldChange(target) {
 async function bootstrap() {
   state.meta = await desktopApi.getMeta();
   state.catalog = await desktopApi.getWorkflowCatalog();
+  state.settings = normalizeSettingsLocal(await desktopApi.getSettings());
   elements.metaText.textContent =
     `Version ${state.meta.appVersion} · 项目库: ${state.meta.projectLibraryRoot}`;
 
@@ -1304,7 +1964,6 @@ async function bootstrap() {
   elements.accountSourceSelect.innerHTML = (state.catalog.accountSources || [])
     .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
     .join("");
-  buildStepTypeOptions();
 
   await refreshProjects();
   if (state.projects.length > 0) {
@@ -1312,6 +1971,7 @@ async function bootstrap() {
   } else {
     await createBlankProject();
   }
+  startRunPolling();
 }
 
 elements.refreshProjectsBtn.addEventListener("click", async () => {
@@ -1325,6 +1985,12 @@ elements.projectList.addEventListener("click", async (event) => {
     return;
   }
   await loadProject(target.dataset.projectId, "已切换到选中的流程。");
+});
+
+elements.createUrlBtn.addEventListener("click", () => {
+  createUrlProject().catch((error) => {
+    setResultStatus(`官网 URL 分析失败: ${error.message || String(error)}`, "danger");
+  });
 });
 
 elements.createBlankBtn.addEventListener("click", () => {
@@ -1388,6 +2054,42 @@ elements.exportWorkflowBtn.addEventListener("click", () => {
 elements.openOutputBtn.addEventListener("click", () => {
   openOutputDir().catch((error) => {
     setResultStatus(`打开输出目录失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.saveSettingsBtn.addEventListener("click", () => {
+  saveSettingsForm().catch((error) => {
+    setResultStatus(`保存设置失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.refreshRunHistoryBtn.addEventListener("click", () => {
+  refreshRunHistory(false).catch((error) => {
+    setResultStatus(`刷新运行记录失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.runWorkflowBtn.addEventListener("click", () => {
+  runCurrentWorkflow().catch((error) => {
+    setResultStatus(`应用内运行失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.pauseRunBtn.addEventListener("click", () => {
+  pauseCurrentRun().catch((error) => {
+    setResultStatus(`暂停失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.resumeRunBtn.addEventListener("click", () => {
+  resumeCurrentRun().catch((error) => {
+    setResultStatus(`继续失败: ${error.message || String(error)}`, "danger");
+  });
+});
+
+elements.stopRunBtn.addEventListener("click", () => {
+  stopCurrentRun().catch((error) => {
+    setResultStatus(`停止失败: ${error.message || String(error)}`, "danger");
   });
 });
 
@@ -1494,6 +2196,12 @@ elements.authEditor.addEventListener("change", (event) => {
   } catch (error) {
     setResultStatus(error.message || String(error), "danger");
   }
+});
+
+elements.addPresetBtn.addEventListener("click", () => {
+  addPresetStep().catch((error) => {
+    setResultStatus(`添加快速积木失败: ${error.message || String(error)}`, "danger");
+  });
 });
 
 elements.addStepBtn.addEventListener("click", addStep);

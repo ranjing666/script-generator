@@ -34,8 +34,13 @@
           <div class="section-head">
             <h2>新建流程</h2>
           </div>
+          <label>
+            官网 URL
+            <input id="urlInput" type="text" placeholder="https://example.com/tasks" />
+          </label>
+          <button id="createUrlBtn" class="primary" type="button">从官网 URL 开始</button>
           <button id="createBlankBtn" type="button">空白流程</button>
-          <button id="createImportBtn" class="primary" type="button">从抓包开始</button>
+          <button id="createImportBtn" type="button">从抓包开始</button>
           <button id="importWorkflowBtn" type="button">导入流程文件</button>
           <label>
             模板起点
@@ -43,8 +48,74 @@
           </label>
           <button id="createTemplateBtn" type="button">从模板开始</button>
           <p class="helper-copy">
-            现在只有一个主工作台。先创建流程，再在中间区域按五段流程补齐配置。
+            默认从官网 URL 开始。抓包、模板和流程文件仍然共用同一条 workflow 链路。
           </p>
+        </section>
+
+        <section class="panel-card settings-card">
+          <div class="section-head">
+            <h2>运行设置</h2>
+            <button id="saveSettingsBtn" class="ghost-btn" type="button">保存</button>
+          </div>
+          <div class="field-grid compact-grid">
+            <label>
+              AI 提供方
+              <select id="aiProviderSelect">
+                <option value="disabled">关闭</option>
+                <option value="openai">OpenAI 兼容</option>
+                <option value="custom">自定义</option>
+              </select>
+            </label>
+            <label>
+              模型名
+              <input id="aiModelInput" type="text" placeholder="gpt-4.1-mini" />
+            </label>
+            <label class="wide">
+              AI Endpoint
+              <input id="aiEndpointInput" type="text" placeholder="https://api.example.com/v1" />
+            </label>
+            <label class="wide">
+              AI API Key
+              <input id="aiApiKeyInput" type="text" placeholder="sk-..." />
+            </label>
+            <label>
+              验证码服务
+              <select id="captchaProviderSelect">
+                <option value="manual">人工兜底</option>
+                <option value="capsolver">Capsolver</option>
+                <option value="2captcha">2Captcha</option>
+                <option value="custom">自定义</option>
+              </select>
+            </label>
+            <label>
+              钱包模式
+              <select id="walletModeSelect">
+                <option value="hybrid">浏览器 + 工具内双模式</option>
+                <option value="browser_only">只复用浏览器会话</option>
+                <option value="local_only">只用工具内账号</option>
+              </select>
+            </label>
+            <label class="wide">
+              验证码 Endpoint
+              <input id="captchaEndpointInput" type="text" placeholder="https://api.capsolver.com" />
+            </label>
+            <label class="wide">
+              验证码 API Key
+              <input id="captchaApiKeyInput" type="text" placeholder="captcha-key" />
+            </label>
+            <label class="wide">
+              浏览器 Profile
+              <input id="browserProfileInput" type="text" placeholder="Chrome Default / Edge Profile 1" />
+            </label>
+            <label>
+              EVM RPC
+              <input id="evmRpcInput" type="text" placeholder="https://rpc.example" />
+            </label>
+            <label>
+              Solana RPC
+              <input id="solanaRpcInput" type="text" placeholder="https://api.devnet.solana.com" />
+            </label>
+          </div>
         </section>
 
         <section class="panel-card library-card">
@@ -124,13 +195,19 @@
         <section class="panel-card">
           <div class="section-head">
             <h2><span class="section-index">4</span>步骤卡片流</h2>
-            <div class="inline-actions">
-              <select id="stepTypeSelect"></select>
-              <button id="addStepBtn" type="button">新增步骤</button>
+            <div class="step-builder">
+              <div class="inline-actions">
+                <select id="presetSelect"></select>
+                <button id="addPresetBtn" class="primary" type="button">添加快速积木</button>
+              </div>
+              <div class="inline-actions">
+                <select id="stepTypeSelect"></select>
+                <button id="addStepBtn" type="button">新增空白步骤</button>
+              </div>
             </div>
           </div>
           <div class="helper-copy">
-            步骤严格按顺序执行。你可以启用、禁用、排序、复制、删除，并修改每个步骤的基础字段。
+            优先用“快速积木”起步，再按需要微调字段。步骤严格按顺序执行，你可以启用、禁用、排序、复制、删除。
           </div>
           <div id="stepList" class="step-list"></div>
         </section>
@@ -162,6 +239,21 @@
             <h2>执行结果</h2>
           </div>
           <pre id="resultStatus" class="status-box">等待操作。</pre>
+        </section>
+
+        <section class="panel-card">
+          <div class="section-head">
+            <h2>应用内运行</h2>
+            <button id="refreshRunHistoryBtn" class="ghost-btn" type="button">刷新</button>
+          </div>
+          <div class="preview-actions">
+            <button id="runWorkflowBtn" class="primary" type="button">运行</button>
+            <button id="pauseRunBtn" type="button">暂停</button>
+            <button id="resumeRunBtn" type="button">继续</button>
+            <button id="stopRunBtn" type="button">停止</button>
+          </div>
+          <pre id="runSummary" class="status-box">还没有运行记录。</pre>
+          <div id="runHistoryList" class="diagnostics-list"></div>
         </section>
       </aside>
     </main>

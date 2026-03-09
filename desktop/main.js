@@ -44,6 +44,14 @@ function registerIpcHandlers() {
     return workflowService.getCatalog();
   });
 
+  ipcMain.handle("workflow:get-settings", async () => {
+    return workflowService.getSettings(getProjectLibraryRoot());
+  });
+
+  ipcMain.handle("workflow:save-settings", async (_, settings) => {
+    return workflowService.updateSettings(getProjectLibraryRoot(), settings || {});
+  });
+
   ipcMain.handle("dialog:choose-import-file", async () => {
     const result = await dialog.showOpenDialog({
       title: "选择抓包文件",
@@ -108,6 +116,10 @@ function registerIpcHandlers() {
     return workflowService.createProject(getProjectLibraryRoot(), options || {});
   });
 
+  ipcMain.handle("workflow:analyze-url", async (_, options) => {
+    return workflowService.analyzeUrl(getProjectLibraryRoot(), options || {});
+  });
+
   ipcMain.handle("workflow:load-project", async (_, projectId) => {
     return workflowService.loadStoredProject(getProjectLibraryRoot(), projectId);
   });
@@ -118,6 +130,10 @@ function registerIpcHandlers() {
       payload && payload.projectId ? payload.projectId : null,
       payload && payload.workflow ? payload.workflow : {}
     );
+  });
+
+  ipcMain.handle("workflow:create-preset-step", async (_, options) => {
+    return workflowService.createPresetStep(options || {});
   });
 
   ipcMain.handle("workflow:import-source", async (_, options) => {
@@ -143,6 +159,41 @@ function registerIpcHandlers() {
       {
         outputDir: payload && payload.outputDir ? payload.outputDir : "",
       }
+    );
+  });
+
+  ipcMain.handle("workflow:run", async (_, payload) => {
+    return workflowService.runWorkflow(getProjectLibraryRoot(), payload || {});
+  });
+
+  ipcMain.handle("workflow:pause", async (_, payload) => {
+    return workflowService.pauseWorkflow(
+      getProjectLibraryRoot(),
+      payload && payload.projectId ? payload.projectId : "",
+      payload && payload.workflow ? payload.workflow : null
+    );
+  });
+
+  ipcMain.handle("workflow:resume", async (_, payload) => {
+    return workflowService.resumeWorkflow(
+      getProjectLibraryRoot(),
+      payload && payload.projectId ? payload.projectId : "",
+      payload && payload.workflow ? payload.workflow : null
+    );
+  });
+
+  ipcMain.handle("workflow:stop", async (_, payload) => {
+    return workflowService.stopWorkflow(
+      getProjectLibraryRoot(),
+      payload && payload.projectId ? payload.projectId : "",
+      payload && payload.workflow ? payload.workflow : null
+    );
+  });
+
+  ipcMain.handle("workflow:get-run-history", async (_, payload) => {
+    return workflowService.listRunHistory(
+      getProjectLibraryRoot(),
+      payload && payload.projectId ? payload.projectId : ""
     );
   });
 
