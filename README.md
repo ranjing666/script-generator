@@ -23,16 +23,18 @@ Windows 用户直接下载：
 
 安装后直接打开 `风的工具箱`。
 
-## 2.0.0 这次重构了什么
+## 2.1.0 这次新增了什么
 
 - 桌面端改成单一 `Workflow Studio`
-- 新的唯一作者模型是 `WorkflowDocument v2`
+- `WorkflowDocument` 升级到 `v2`
 - 项目库改成应用内持久化存储：`userData/studio-projects/<projectId>/workflow.json`
 - 支持导出/导入流程文件：`.fengflow.json`
+- 新增 `从官网 URL 开始` 主入口
+- 新增本地 URL 分析链路和适配器系统
+- 新增应用内运行控制：运行 / 暂停 / 继续 / 停止 / 运行历史
 - CLI 不再做交互问答，只负责读取流程文件并导出项目
 - 官网 URL、抓包导入、模板起步、空白流程都统一先生成 workflow，再走同一套校验和导出器
 - 生成出来的 Node.js 项目结构和双击运行链路继续保留
-- 新增应用内运行控制：直接托管已生成目录里的 `main.js`
 
 ## 当前作者流程
 
