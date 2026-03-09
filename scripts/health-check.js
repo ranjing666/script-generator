@@ -33,6 +33,7 @@ function assertStarterFiles(outputDir, label) {
   [
     "project.config.json",
     "runtime.config.json",
+    "artifacts/source-material.json",
     "doctor.js",
     "main.js",
     "lib/runner.js",
@@ -199,7 +200,9 @@ function runProjectLibraryCheck() {
 
 async function runUrlAnalysisCheck() {
   const libraryRoot = path.join(HEALTH_ROOT, "url-library");
+  const outputDir = path.join(HEALTH_ROOT, "url-output");
   resetDir(libraryRoot);
+  resetDir(outputDir);
   const html = fs.readFileSync(path.join(ROOT, "examples", "sample-url.html"), "utf8");
   const analyzed = await workflowService.analyzeUrl(libraryRoot, {
     url: "https://quests.example.com/faucet",
@@ -211,10 +214,28 @@ async function runUrlAnalysisCheck() {
   assert(analyzed.summary.sourceKind === "url", "url-analysis: sourceKind mismatch");
   assert(analyzed.workflow.analysis && analyzed.workflow.analysis.sourceType === "url", "url-analysis: missing analysis");
   assert(analyzed.workflow.adapter && analyzed.workflow.adapter.id, "url-analysis: missing adapter");
+  assert(analyzed.workflow.artifacts.analysisSummaryPath, "url-analysis: missing analysisSummaryPath");
+  assert(fs.existsSync(analyzed.workflow.artifacts.analysisSummaryPath), "url-analysis: analysis summary file missing");
+  assert(analyzed.workflow.artifacts.htmlSnapshotPath, "url-analysis: missing htmlSnapshotPath");
+  assert(fs.existsSync(analyzed.workflow.artifacts.htmlSnapshotPath), "url-analysis: html snapshot missing");
   assert(
     analyzed.workflow.steps.some((step) => ["browserAction", "walletConnect", "captchaSolve", "request"].includes(step.type)),
     "url-analysis: expected new step types"
   );
+
+  analyzed.workflow.project.outputDir = outputDir;
+  analyzed.workflow.project.lastOutputDir = outputDir;
+  const generated = workflowService.generateProject(libraryRoot, {
+    projectId: analyzed.summary.id,
+    workflow: analyzed.workflow,
+    outputDir,
+  });
+  assertGeneratedProject(generated.outputDir, "url-analysis");
+  assert(fs.existsSync(path.join(generated.outputDir, "artifacts", "url-analysis", "page.html")), "url-analysis: exported page snapshot missing");
+  assert(fs.existsSync(path.join(generated.outputDir, "artifacts", "url-analysis", "summary.json")), "url-analysis: exported summary missing");
+  const runtimeConfig = readJson(path.join(generated.outputDir, "runtime.config.json"));
+  assert(runtimeConfig.support && runtimeConfig.support.requiresDesktopRuntime === true, "url-analysis: runtime support mismatch");
+  assert(runtimeConfig.sourceArtifacts && runtimeConfig.sourceArtifacts.available, "url-analysis: sourceArtifacts missing");
   console.log("[PASS] url-analysis");
 }
 

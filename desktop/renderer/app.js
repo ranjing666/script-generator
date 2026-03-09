@@ -446,6 +446,7 @@ function normalizeWorkflowLocal(workflow) {
   current.review.reasons = Array.isArray(current.review.reasons) ? current.review.reasons : [];
 
   current.artifacts.htmlSnapshotPath = String(current.artifacts.htmlSnapshotPath || "");
+  current.artifacts.analysisSummaryPath = String(current.artifacts.analysisSummaryPath || "");
   current.artifacts.networkLogPath = String(current.artifacts.networkLogPath || "");
   current.artifacts.tracePath = String(current.artifacts.tracePath || "");
   current.artifacts.generatedOutputDir = String(current.artifacts.generatedOutputDir || current.project.lastOutputDir || "");
@@ -535,6 +536,21 @@ function renderSettingsPanel() {
   elements.solanaRpcInput.value = settings.rpc.solanaRpcUrl;
 }
 
+function buildSourceActionButtons(items) {
+  const actions = (Array.isArray(items) ? items : []).filter((item) => item && item.path);
+  if (!actions.length) {
+    return "";
+  }
+
+  return `
+    <div class="inline-actions">
+      ${actions
+        .map((item) => `<button type="button" class="ghost-btn" data-source-open="${escapeHtml(item.path)}">${escapeHtml(item.label || "打开来源")}</button>`)
+        .join("")}
+    </div>
+  `;
+}
+
 function renderSourcePanel() {
   if (!state.currentWorkflow) {
     elements.sourcePanel.innerHTML = '<div class="empty-block">没有来源材料。</div>';
@@ -580,6 +596,9 @@ function renderSourcePanel() {
         <div class="source-card wide">
           <strong>文件位置</strong>
           <p>${escapeHtml(source.filePath)}</p>
+          ${buildSourceActionButtons([
+            { label: "打开流程文件", path: source.filePath },
+          ])}
         </div>
       </div>
     `;
@@ -590,6 +609,7 @@ function renderSourcePanel() {
     const analysis = state.currentWorkflow.analysis || {};
     const adapter = state.currentWorkflow.adapter || {};
     const review = state.currentWorkflow.review || {};
+    const artifacts = state.currentWorkflow.artifacts || {};
     const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
     const signals = Array.isArray(analysis.signals) ? analysis.signals : [];
     elements.sourcePanel.innerHTML = `
@@ -621,6 +641,10 @@ function renderSourcePanel() {
         <div class="source-card wide">
           <strong>风险提示</strong>
           <p>${warnings.length > 0 ? escapeHtml(warnings.join("；")) : "当前没有 URL 分析级别警告。"}</p>
+          ${buildSourceActionButtons([
+            artifacts.htmlSnapshotPath ? { label: "打开 HTML 快照", path: artifacts.htmlSnapshotPath } : null,
+            artifacts.analysisSummaryPath ? { label: "打开分析摘要", path: artifacts.analysisSummaryPath } : null,
+          ])}
         </div>
       </div>
     `;
@@ -638,6 +662,9 @@ function renderSourcePanel() {
       <div class="source-card">
         <strong>原始文件</strong>
         <p>${escapeHtml(getPathTail(source.inputPath || ""))}</p>
+        ${buildSourceActionButtons([
+          source.inputPath ? { label: "打开原始文件", path: source.inputPath } : null,
+        ])}
       </div>
       <div class="source-card">
         <strong>识别结果</strong>
@@ -2014,6 +2041,17 @@ elements.projectList.addEventListener("click", async (event) => {
     return;
   }
   await loadProject(target.dataset.projectId, "已切换到选中的流程。");
+});
+
+elements.sourcePanel.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-source-open]");
+  if (!target) {
+    return;
+  }
+
+  desktopApi.openPath(target.dataset.sourceOpen).catch((error) => {
+    setResultStatus(`打开来源材料失败: ${error.message || String(error)}`, "danger");
+  });
 });
 
 elements.createUrlBtn.addEventListener("click", () => {

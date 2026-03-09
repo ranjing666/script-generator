@@ -158,6 +158,7 @@ function registerIpcHandlers() {
       payload && payload.workflow ? payload.workflow : {},
       {
         outputDir: payload && payload.outputDir ? payload.outputDir : "",
+        settings: workflowService.getSettings(getProjectLibraryRoot()),
       }
     );
   });
